@@ -1,0 +1,8 @@
+feeds:
+  - url: "https://www.esf.de/SiteGlobals/Functions/RSSFeed/DE/Aktuelles/Aktuelles.xml"
+    name: "ESF Aktuelles"
+    config:
+      update_interval: 3600 # seconds
+      filters:
+        exclude_keywords: []
+        include_keywords: []
