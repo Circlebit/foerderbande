@@ -1,0 +1,8 @@
+start-db:
+    docker compose -f docker/compose.yaml up -d
+
+stop-db:
+    docker compose -f docker/compose.yaml down
+
+clean:
+    docker compose -f docker/compose.yaml down -v

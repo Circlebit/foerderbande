@@ -1,0 +1,8 @@
+# python
+.venv
+
+# docker
+docker/volumes/postgres/data
+
+# IDE
+.idea
