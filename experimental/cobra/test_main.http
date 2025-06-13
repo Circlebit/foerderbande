@@ -5,12 +5,16 @@ Accept: application/json
 
 ###
 
+GET http://127.0.0.1:8000/hello/User
+Accept: application/json
+
+###
+
 GET http://127.0.0.1:8000/api/funding-calls
 Accept: application/json
 
 ###
 
-GET http://127.0.0.1:8000/hello/User
-Accept: application/json
-
-###
+# Test RSS Feed
+GET http://127.0.0.1:8000/rss/funding-calls
+Accept: application/rss+xml
