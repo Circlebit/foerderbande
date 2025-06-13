@@ -1,3 +1,6 @@
+dev:
+    uv run uvicorn main:app --reload
+
 start-db:
     docker compose -f docker/compose.yaml up -d
 
@@ -6,3 +9,8 @@ stop-db:
 
 clean:
     docker compose -f docker/compose.yaml down -v
+    rm -rf docker/volumes/postgres/data
+
+reset-db:
+    just clean
+    just start-db

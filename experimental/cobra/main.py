@@ -1,11 +1,36 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from typing import List
 
-app = FastAPI()
+from database import get_db, FundingCall as FundingCallModel
+from schemas import FundingCall
+
+app = FastAPI(title="Funding Monitor API", version="0.1.0")
+
+# CORS für Frontend-Zugriff
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Funding Monitor API", "version": "0.1.0"}
+
+
+@app.get("/api/funding-calls", response_model=List[FundingCall])
+async def get_funding_calls(db: Session = Depends(get_db)):
+    """
+    Get all funding calls, ordered by relevance and deadline.
+    """
+    calls = db.query(FundingCallModel).order_by(
+        FundingCallModel.created_at.desc()
+    ).all()
+    return calls
 
 
 @app.get("/hello/{name}")
