@@ -1,5 +1,6 @@
 # python
 .venv
+__pycache__
 
 # docker
 docker/volumes/postgres/data
