@@ -1,0 +1,20 @@
+{
+  "name": "fomo",
+  "version": "0.0.1",
+  "description": "funding opportunity monitor",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose -f docker/compose.yaml up -d",
+    "dev:logs": "docker compose -f docker/compose.yaml logs -f",
+    "dev:down": "docker compose -f docker/compose.yaml down",
+    "dev:clean": "docker compose -f docker/compose.yaml down -v && docker volume prune -f && rm -rf docker/volumes/db/data"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {},
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  }
+}
