@@ -9,8 +9,13 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
-      # Nur Daten persistieren - keine custom init scripts
+      # Must be superuser to alter reserved role
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
+      # Initialize the database settings with JWT_SECRET and JWT_EXP
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
+      # PGDATA directory is persisted between restarts
       - ./volumes/db/data:/var/lib/postgresql/data:Z
+      # Use named volume to persist pgsodium decryption key between restarts
       - db-config:/etc/postgresql-custom
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
@@ -112,9 +117,6 @@ services:
       GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
       GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
 
-      # WICHTIG: Nutze existierendes Schema, keine eigenen Migrations
-      GOTRUE_DB_MIGRATIONS_DISABLE: "true"
-
   # postgres-meta (für Studio)
   meta:
     container_name: supabase-meta
@@ -149,11 +151,6 @@ services:
       timeout: 10s
       interval: 5s
       retries: 3
-    depends_on:
-      db:
-        condition: service_healthy
-      meta:
-        condition: service_started
     environment:
       STUDIO_PG_META_URL: http://meta:8080
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
