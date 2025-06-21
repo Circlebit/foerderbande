@@ -1,13 +1,13 @@
-import CallGrid from "./components/CallGrid.tsx";
+import FundingCallsGrid from "./components/FundingCallsGrid.tsx";
 
 function App() {
   return (
     <>
       <div>
-        <CallGrid />
+        <FundingCallsGrid />
       </div>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
