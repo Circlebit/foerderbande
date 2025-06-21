@@ -53,33 +53,46 @@ This will:
 - **Supabase Studio:** http://localhost:3001 (Database management)
 - **API:** http://localhost:8000 (Kong Gateway)
 
-### 5. View docker compose logs (optional)
+## Development Tools
+
+### View docker compose logs (optional)
 
 ```bash
 pnpm dev:logs
 ```
 
-### 6. Stop all services
+### Stop all services
 
 ```bash
 pnpm dev:down
 ```
 
-### 7. Clean all volumes and data (will delete everything!)
+### Clean all volumes and data (will delete everything!)
 
 ```bash
 pnpm dev:clean
 ```
 
+### Generate TypeScript types from database (after schema changes)
+
+```bash
+pnpm gen:types
+```
+
+This generates TypeScript interfaces from your PostgreSQL schema and saves them to `packages/frontend/src/types/database.ts`. Run this whenever you modify the database schema.
+
 ## Project Structure
 
 ```
 foerderbande/
-├── .env                    # Environment variables (copy from .env.example)
+├── .env                     # Environment variables (copy from .env.example)
 ├── .env.example            # Template with safe defaults
 ├── compose.yaml            # Docker services definition
 ├── packages/
 │   └── frontend/           # React frontend application
+│       └── src/
+│           ├── types/      # Auto-generated TypeScript types
+│           └── services/   # API clients and configuration
 ├── docker/
 │   └── volumes/            # Docker volume mounts (DB data, configs)
 └── README.md
@@ -88,5 +101,7 @@ foerderbande/
 ## Development
 
 The frontend automatically loads environment variables from the root `.env` file via Vite configuration (`envDir: '../../'`).
+
+Database TypeScript types are auto-generated from the PostgreSQL schema using the Supabase CLI. After making schema changes, run `pnpm gen:types` to update the type definitions.
 
 All services communicate through the Kong API Gateway running on port 8000, which provides authentication and routing for the Supabase backend services.

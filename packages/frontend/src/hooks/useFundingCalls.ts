@@ -1,9 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import {
-  supabase,
-  handleSupabaseError,
-  type Database,
-} from "../services/supabase";
+import { supabase, handleSupabaseError } from "../services/supabase";
+import type { Database } from "../types/database";
 
 // Type alias for funding call from our database schema
 export type FundingCall = Database["public"]["Tables"]["funding_calls"]["Row"];

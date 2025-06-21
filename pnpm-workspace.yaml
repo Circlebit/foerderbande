@@ -4,3 +4,6 @@ packages:
 ignoredBuiltDependencies:
   - '@swc/core'
   - esbuild
+
+onlyBuiltDependencies:
+  - supabase

@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../types/database";
 
 // Environment variables (loaded from .env via Vite)
 const SUPABASE_URL =
@@ -26,52 +27,6 @@ export const supabase: SupabaseClient = createClient(
     },
   }
 );
-
-/**
- * Type-safe database schema interface
- * This will be auto-generated later when we add proper Supabase TypeScript generation
- */
-export interface Database {
-  public: {
-    Tables: {
-      funding_calls: {
-        Row: {
-          id: number;
-          title: string;
-          description: string | null;
-          deadline: string | null;
-          source_url: string | null;
-          details: Record<string, any>;
-          relevance_score: number;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: number;
-          title: string;
-          description?: string | null;
-          deadline?: string | null;
-          source_url?: string | null;
-          details?: Record<string, any>;
-          relevance_score?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: number;
-          title?: string;
-          description?: string | null;
-          deadline?: string | null;
-          source_url?: string | null;
-          details?: Record<string, any>;
-          relevance_score?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-    };
-  };
-}
 
 // Type-safe Supabase client
 export type TypedSupabaseClient = SupabaseClient<Database>;
