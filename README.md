@@ -1,13 +1,13 @@
 # FOMo (Funding Opportunity Monitor)
 
-A monorepo for a system that monitors funding opportunities, including:
+A system that monitors funding opportunities, including:
 
-- **Frontend** (`packages/fomo-frontend`) – Vite + React
-- **Docker Services** (Supabase, etc.) – managed via Docker Compose in `/docker`
+- **fomo-frontend** (`packages/frontend`) – Vite + React
+- **docker services** (`/docker`) – Supabase managed via Docker Compose
 
 ## Getting Started
 
-### 0. Requirements
+### 0. Tooling Requirements
 
 - **Node.js** ≥ 22.0.0
 - **pnpm** ≥ 10.0.0
@@ -29,8 +29,9 @@ pnpm dev
 This will:
 
 - Start Docker services (e.g. Supabase) via `docker/compose.yaml`
+- Start Vite dev server for frontend
 
-### 3. View logs (optional)
+### 3. View docker compose logs (optional)
 
 ```bash
 pnpm dev:logs
@@ -42,7 +43,7 @@ pnpm dev:logs
 pnpm dev:down
 ```
 
-### 5. Clean all volumes and data
+### 5. Clean all volumes and data (will delete everything!)
 
 ```bash
 pnpm dev:clean
