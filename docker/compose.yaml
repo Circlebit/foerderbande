@@ -1,4 +1,4 @@
-name: foerderfreund
+name: fomo
 
 services:
   # PostgreSQL Database (mit Supabase Extensions)
