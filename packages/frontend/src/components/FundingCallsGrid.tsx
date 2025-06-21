@@ -104,7 +104,7 @@ export default function FundingCallsGrid() {
           {deadlineDate.toLocaleDateString("de-DE")}
         </Typography>
         <Typography
-          variant="caption"
+          variant="subtitle2"
           color={`${getUrgencyColor(daysUntil)}.main`}
         >
           {daysUntil > 0 ? `${daysUntil} Tage` : "Abgelaufen"}
