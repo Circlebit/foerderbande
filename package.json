@@ -5,11 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -k -n docker,frontend \"pnpm dev:docker\" \"pnpm dev:frontend\"",
-    "dev:docker": "docker compose -f docker/compose.yaml up",
+    "dev:docker": "docker compose up",
     "dev:frontend": "pnpm --filter fomo-frontend dev",
-    "dev:logs": "docker compose -f docker/compose.yaml logs -f",
-    "dev:down": "docker compose -f docker/compose.yaml down",
-    "dev:clean": "docker compose -f docker/compose.yaml down -v && docker volume prune -f && rm -rf docker/volumes/db/data"
+    "dev:logs": "docker compose logs -f",
+    "dev:down": "docker compose down",
+    "dev:clean": "docker compose down -v && docker volume prune -f && rm -rf docker/volumes/db/data"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

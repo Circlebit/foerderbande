@@ -10,16 +10,16 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       # Must be superuser to alter reserved role
-      - ./volumes/db/init/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
+      - ./docker/volumes/db/init/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
       # Initialize the database settings with JWT_SECRET and JWT_EXP
-      - ./volumes/db/init/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
+      - ./docker/volumes/db/init/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
       # PGDATA directory is persisted between restarts
-      - ./volumes/db/data:/var/lib/postgresql/data:Z
+      - ./docker/volumes/db/data:/var/lib/postgresql/data:Z
       # Use named volume to persist pgsodium decryption key between restarts
       - db-config:/etc/postgresql-custom
 
       # initial schema (maybe do this as migration after prototyping phase)
-      - ./volumes/db/init/init-app-schema.sql:/docker-entrypoint-initdb.d/init-scripts/50-app-schema.sql:Z
+      - ./docker/volumes/db/init/init-app-schema.sql:/docker-entrypoint-initdb.d/init-scripts/50-app-schema.sql:Z
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
       interval: 5s
@@ -44,7 +44,7 @@ services:
         "log_min_messages=fatal",
       ]
 
-  # PostgREST API (jetzt ohne externe Ports)
+  # PostgREST API
   rest:
     container_name: supabase-rest
     image: postgrest/postgrest:v12.2.12
@@ -62,7 +62,7 @@ services:
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
     command: ["postgrest"]
 
-  # Supabase Auth (jetzt ohne externe Ports)
+  # Supabase Auth
   auth:
     container_name: supabase-auth
     image: supabase/gotrue:v2.174.0
@@ -105,7 +105,7 @@ services:
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS}
       GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
 
-      # SMTP Settings - fake values für PoC
+      # SMTP Settings
       GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
       GOTRUE_SMTP_PORT: ${SMTP_PORT}
@@ -132,7 +132,7 @@ services:
       PG_META_DB_USER: supabase_admin
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
 
-  # Supabase Studio (jetzt mit Kong-URL)
+  # Supabase Studio
   studio:
     container_name: supabase-studio
     image: supabase/studio:2025.06.02-sha-8f2993d
@@ -160,7 +160,7 @@ services:
       DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
       DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
 
-      # Jetzt über Kong
+      # Kong Gateway URLs
       SUPABASE_URL: http://kong:8000
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
@@ -176,21 +176,21 @@ services:
       - ${KONG_HTTP_PORT}:8000/tcp
       - ${KONG_HTTPS_PORT}:8443/tcp
     volumes:
-      # https://github.com/supabase/supabase/issues/12661
-      - ./volumes/api/kong.yml:/home/kong/temp.yml:z
+      # Kong config file
+      - ./docker/volumes/api/kong.yml:/home/kong/temp.yml:z
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      # https://github.com/supabase/cli/issues/14
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      # Kong specific env vars
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    # https://unix.stackexchange.com/a/294837
+    # Parse template and start kong
     entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
 volumes:
