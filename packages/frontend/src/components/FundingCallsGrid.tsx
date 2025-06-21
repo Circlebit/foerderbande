@@ -1,58 +1,9 @@
-import { useEffect, useState } from "react";
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import { Paper, Typography, Box, Chip } from "@mui/material";
-import { createClient } from "@supabase/supabase-js";
-
-// Type definitions for our funding calls
-interface FundingCall {
-  id: number;
-  title: string;
-  description: string | null;
-  deadline: string | null;
-  source_url: string | null;
-  details: Record<string, any>;
-  relevance_score: number;
-  created_at: string;
-  updated_at: string;
-}
-
-// Supabase client setup (in real app, this would be in a separate config file)
-const supabaseUrl = "http://localhost:8000"; // PostgREST endpoint
-const supabaseAnonKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"; // Replace with actual key
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { useFundingCalls } from "../hooks/useFundingCalls";
 
 export default function FundingCallsGrid() {
-  const [fundingCalls, setFundingCalls] = useState<FundingCall[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch funding calls from Supabase
-  const fetchFundingCalls = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase
-        .from("funding_calls")
-        .select("*")
-        .order("relevance_score", { ascending: false });
-
-      if (error) throw error;
-
-      setFundingCalls(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error occurred");
-      console.error("Error fetching funding calls:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchFundingCalls();
-  }, []);
+  const { fundingCalls, loading, error } = useFundingCalls();
 
   // Custom renderer for relevance score as colored chip
   const renderRelevanceScore = (score: number) => {

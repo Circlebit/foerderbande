@@ -1,54 +1,63 @@
-import {useState, useEffect} from 'react';
+import { useEffect, useState, useCallback } from "react";
+import {
+  supabase,
+  handleSupabaseError,
+  type Database,
+} from "../services/supabase";
 
-export interface FundingCall {
-  id: number;
-  title: string;
-  description: string | null;
-  url: string;
-  source: string;
-  extra_data: {
-    deadline?: string;
-    funding_body?: string;
-    max_amount?: number;
-    min_amount?: number;
-    currency?: string;
-    target_groups?: string[];
-    application_type?: string;
-    contact_email?: string;
-    keywords?: string[];
-  };
-  created_at: string;
-  updated_at: string;
+// Type alias for funding call from our database schema
+export type FundingCall = Database["public"]["Tables"]["funding_calls"]["Row"];
+
+// Hook state interface
+interface UseFundingCallsReturn {
+  fundingCalls: FundingCall[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
 }
 
-export const useFundingCalls = () => {
-  const [calls, setCalls] = useState<FundingCall[]>([]);
+/**
+ * Custom hook to fetch and manage funding calls from Supabase
+ *
+ * @returns Object containing funding calls data, loading state, error state, and refetch function
+ */
+export function useFundingCalls(): UseFundingCallsReturn {
+  const [fundingCalls, setFundingCalls] = useState<FundingCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchCalls = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('http://localhost:8000/api/funding-calls');
+  // Fetch funding calls from Supabase
+  const fetchFundingCalls = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+      const { data, error: supabaseError } = await supabase
+        .from("funding_calls")
+        .select("*")
+        .order("relevance_score", { ascending: false });
 
-        const data = await response.json();
-        setCalls(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred');
-        console.error('Failed to fetch funding calls:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      if (supabaseError) throw supabaseError;
 
-    fetchCalls();
+      setFundingCalls(data || []);
+    } catch (err) {
+      const errorMessage = handleSupabaseError(err);
+      setError(errorMessage);
+      console.error("Error fetching funding calls:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return {calls, loading, error, refetch: () => window.location.reload()};
-};
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchFundingCalls();
+  }, [fetchFundingCalls]);
+
+  return {
+    fundingCalls,
+    loading,
+    error,
+    refetch: fetchFundingCalls,
+  };
+}
