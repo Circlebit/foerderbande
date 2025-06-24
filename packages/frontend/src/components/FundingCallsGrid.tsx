@@ -7,8 +7,11 @@ import {
   Link,
   FormControlLabel,
   Switch,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { ThumbDown, ThumbDownOffAlt } from "@mui/icons-material";
 import {
   useFundingCalls,
   type NormalizedFundingCall,
@@ -16,24 +19,83 @@ import {
 
 export default function FundingCallsGrid() {
   const { fundingCalls, loading, error, usingMockData } = useFundingCalls();
-  const [showOnlyRelevant, setShowOnlyRelevant] = useState(true); // Default: nur relevante anzeigen
+  const [showOnlyRelevant, setShowOnlyRelevant] = useState(true);
 
-  // Filter funding calls based on toggle
+  // Track manual overrides (user corrections)
+  const [manualOverrides, setManualOverrides] = useState<
+    Record<number, boolean>
+  >({});
+
+  // Handle manual relevance override
+  const handleRelevanceOverride = useCallback(
+    (id: number, isRelevant: boolean) => {
+      setManualOverrides((prev) => ({
+        ...prev,
+        [id]: isRelevant,
+      }));
+    },
+    []
+  );
+
+  // Get effective relevance (manual override trumps AI decision)
+  const getEffectiveRelevance = useCallback(
+    (call: NormalizedFundingCall) => {
+      if (manualOverrides[call.id] !== undefined) {
+        return manualOverrides[call.id];
+      }
+      return call.relevanceInfo.isRelevant;
+    },
+    [manualOverrides]
+  );
+
+  // Filter funding calls based on toggle and manual overrides
   const filteredFundingCalls = showOnlyRelevant
-    ? fundingCalls.filter((call) => call.relevanceInfo.isRelevant)
+    ? fundingCalls.filter((call) => getEffectiveRelevance(call))
     : fundingCalls;
 
-  // Custom renderer for relevance as colored chip
+  // Custom renderer for relevance with manual override
   const renderRelevance = (params: { row: NormalizedFundingCall }) => {
-    const { isRelevant } = params.row.relevanceInfo;
+    const aiRelevant = params.row.relevanceInfo.isRelevant;
+    const effectiveRelevant = getEffectiveRelevance(params.row);
+    const hasOverride = manualOverrides[params.row.id] !== undefined;
 
     return (
-      <Chip
-        label={isRelevant ? "Relevant" : "Prüfen"}
-        color={isRelevant ? "success" : "default"}
-        size="small"
-        variant={isRelevant ? "filled" : "outlined"}
-      />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Chip
+          label={effectiveRelevant ? "Relevant" : "Nicht relevant"}
+          color={effectiveRelevant ? "success" : "error"}
+          size="small"
+          variant={hasOverride ? "filled" : "outlined"}
+        />
+
+        {aiRelevant && (
+          <Tooltip
+            title={
+              hasOverride
+                ? "Als nicht relevant markiert"
+                : "Als nicht relevant markieren"
+            }
+          >
+            <IconButton
+              size="small"
+              onClick={() =>
+                handleRelevanceOverride(
+                  params.row.id,
+                  hasOverride ? aiRelevant : false // Toggle: restore AI or mark as irrelevant
+                )
+              }
+              color={hasOverride ? "error" : "default"}
+              sx={{ p: 0.5 }}
+            >
+              {hasOverride ? (
+                <ThumbDown fontSize="small" />
+              ) : (
+                <ThumbDownOffAlt fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
     );
   };
 
@@ -200,8 +262,8 @@ export default function FundingCallsGrid() {
     {
       field: "relevance",
       headerName: "Relevanz",
-      flex: 0.5,
-      minWidth: 100,
+      flex: 1,
+      minWidth: 160, // Increased for button space
       renderCell: renderRelevance,
     },
     {
