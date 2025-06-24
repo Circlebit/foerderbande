@@ -127,10 +127,60 @@ export default function FundingCallsGrid() {
   const columns: GridColDef[] = [
     {
       field: "title",
-      headerName: "Titel",
+      headerName: "Name der Förderung",
       flex: 2,
-      minWidth: 250,
-      renderCell: renderTitle,
+      minWidth: 300,
+      renderCell: (params: { row: NormalizedFundingCall }) => {
+        const url = params.row.source_url;
+
+        const titleElement = (
+          <Typography
+            variant="body2"
+            fontWeight={500}
+            sx={{
+              mb: 0.5,
+              color: url ? "primary.main" : "text.primary",
+              cursor: url ? "pointer" : "default",
+              "&:hover": url ? { textDecoration: "underline" } : {},
+            }}
+          >
+            {params.row.title}
+          </Typography>
+        );
+
+        return (
+          <Box>
+            {url ? (
+              <Link
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                underline="none"
+                sx={{ color: "inherit" }}
+              >
+                {titleElement}
+              </Link>
+            ) : (
+              titleElement
+            )}
+            {params.row.description && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  lineHeight: 1.2,
+                }}
+              >
+                {params.row.description}
+              </Typography>
+            )}
+          </Box>
+        );
+      },
     },
     {
       field: "relevance",
@@ -141,7 +191,7 @@ export default function FundingCallsGrid() {
     },
     {
       field: "deadline",
-      headerName: "Frist",
+      headerName: "Antragsfrist",
       flex: 1,
       minWidth: 120,
       renderCell: renderDeadline,
@@ -214,15 +264,18 @@ export default function FundingCallsGrid() {
           border: 0,
           "& .MuiDataGrid-cell": {
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start", // Changed from center to flex-start for better text layout
             lineHeight: "unset !important",
             maxHeight: "none !important",
             whiteSpace: "normal",
-            paddingTop: "8px",
-            paddingBottom: "8px",
+            paddingTop: "12px", // Increased padding for better readability
+            paddingBottom: "12px",
           },
           "& .MuiDataGrid-cell:focus": {
             outline: "none",
+          },
+          "& .MuiDataGrid-row": {
+            minHeight: "80px !important", // Minimum row height for description text
           },
           "& .MuiDataGrid-row:hover": {
             backgroundColor: "action.hover",
@@ -234,6 +287,7 @@ export default function FundingCallsGrid() {
             maxHeight: "none",
             whiteSpace: "normal",
             lineHeight: "1.2",
+            width: "100%", // Ensure full width usage
           },
         }}
       />
