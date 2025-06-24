@@ -7,11 +7,9 @@ import {
   Link,
   FormControlLabel,
   Switch,
-  IconButton,
   Tooltip,
 } from "@mui/material";
 import { useState, useCallback } from "react";
-import { ThumbDown, ThumbDownOffAlt } from "@mui/icons-material";
 import {
   useFundingCalls,
   type NormalizedFundingCall,
@@ -59,43 +57,49 @@ export default function FundingCallsGrid() {
     const effectiveRelevant = getEffectiveRelevance(params.row);
     const hasOverride = manualOverrides[params.row.id] !== undefined;
 
+    const handleChipClick = () => {
+      if (hasOverride) {
+        // Reset to AI decision
+        setManualOverrides((prev) => {
+          const newOverrides = { ...prev };
+          delete newOverrides[params.row.id];
+          return newOverrides;
+        });
+      } else {
+        // Toggle the current state
+        handleRelevanceOverride(params.row.id, !effectiveRelevant);
+      }
+    };
+
+    const getTooltipText = () => {
+      if (hasOverride) {
+        return "Klicken um AI-Bewertung zu verwenden";
+      }
+      return effectiveRelevant
+        ? "Klicken um als nicht relevant zu markieren"
+        : "Klicken um als relevant zu markieren";
+    };
+
     return (
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Tooltip title={getTooltipText()}>
         <Chip
           label={effectiveRelevant ? "Relevant" : "Nicht relevant"}
           color={effectiveRelevant ? "success" : "error"}
           size="small"
           variant={hasOverride ? "filled" : "outlined"}
+          onClick={handleChipClick}
+          sx={{
+            cursor: "pointer",
+            "&:hover": {
+              opacity: 0.8,
+            },
+            // Visual indicator for manual override
+            ...(hasOverride && {
+              boxShadow: 1,
+            }),
+          }}
         />
-
-        {aiRelevant && (
-          <Tooltip
-            title={
-              hasOverride
-                ? "Als nicht relevant markiert"
-                : "Als nicht relevant markieren"
-            }
-          >
-            <IconButton
-              size="small"
-              onClick={() =>
-                handleRelevanceOverride(
-                  params.row.id,
-                  hasOverride ? aiRelevant : false // Toggle: restore AI or mark as irrelevant
-                )
-              }
-              color={hasOverride ? "error" : "default"}
-              sx={{ p: 0.5 }}
-            >
-              {hasOverride ? (
-                <ThumbDown fontSize="small" />
-              ) : (
-                <ThumbDownOffAlt fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
+      </Tooltip>
     );
   };
 
@@ -260,17 +264,10 @@ export default function FundingCallsGrid() {
       },
     },
     {
-      field: "relevance",
-      headerName: "Relevanz",
-      flex: 1,
-      minWidth: 160, // Increased for button space
-      renderCell: renderRelevance,
-    },
-    {
       field: "deadline",
       headerName: "Antragsfrist",
       flex: 1,
-      minWidth: 120,
+      minWidth: 160,
       renderCell: renderDeadline,
     },
     {
@@ -293,6 +290,13 @@ export default function FundingCallsGrid() {
         return duration || "-";
       },
     },
+    {
+      field: "relevance",
+      headerName: "Relevanz",
+      flex: 1,
+      minWidth: 60,
+      renderCell: renderRelevance,
+    },
   ];
 
   if (error) {
@@ -306,105 +310,128 @@ export default function FundingCallsGrid() {
   }
 
   return (
-    <Paper sx={{ width: "100%", height: 600 }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+    <Box
+      sx={{
+        height: "98vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden", // Prevent scrollbars on the container
+      }}
+    >
+      <Paper
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0, // Important for flex child to shrink
+        }}
+      >
+        {/* Header section with fixed height */}
         <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 1,
-          }}
+          sx={{ p: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}
         >
-          <Typography variant="h6" component="h2">
-            Fördermittelausschreibungen
-            {usingMockData && (
-              <Chip
-                label="Mock-Daten"
-                size="small"
-                color="warning"
-                variant="outlined"
-                sx={{ ml: 1 }}
-              />
-            )}
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 1,
+            }}
+          >
+            <Typography variant="h6" component="h2">
+              Fördermittelausschreibungen
+              {usingMockData && (
+                <Chip
+                  label="Mock-Daten"
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ ml: 1 }}
+                />
+              )}
+            </Typography>
 
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showOnlyRelevant}
-                onChange={(e) => setShowOnlyRelevant(e.target.checked)}
-                color="primary"
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showOnlyRelevant}
+                  onChange={(e) => setShowOnlyRelevant(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="body2">Nur relevante anzeigen</Typography>
+              }
+              labelPlacement="start"
+              sx={{ m: 0 }}
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+            <Typography variant="body2" color="text.secondary">
+              {filteredFundingCalls.length} von {fundingCalls.length}{" "}
+              Ausschreibungen
+            </Typography>
+
+            {/* {showOnlyRelevant && (
+              <Chip
+                label="Nur relevante"
+                size="small"
+                color="success"
+                variant="outlined"
               />
-            }
-            label={
-              <Typography variant="body2">Nur relevante anzeigen</Typography>
-            }
-            labelPlacement="start"
-            sx={{ m: 0 }}
+            )} */}
+          </Box>
+        </Box>
+
+        {/* DataGrid takes the remaining space */}
+        <Box sx={{ flex: 1, minHeight: 0 }}>
+          <DataGrid
+            rows={filteredFundingCalls}
+            columns={columns}
+            loading={loading}
+            pageSizeOptions={[10, 25, 50]}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 25 }, // Increased default page size for better use of space
+              },
+            }}
+            disableRowSelectionOnClick
+            getRowHeight={() => "auto"}
+            sx={{
+              border: 0,
+              height: "100%", // Take full height of parent
+              "& .MuiDataGrid-cell": {
+                display: "flex",
+                alignItems: "flex-start",
+                lineHeight: "unset !important",
+                maxHeight: "none !important",
+                whiteSpace: "normal",
+                paddingTop: "12px",
+                paddingBottom: "12px",
+              },
+              "& .MuiDataGrid-cell:focus": {
+                outline: "none",
+              },
+              "& .MuiDataGrid-row": {
+                minHeight: "80px !important",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "action.hover",
+              },
+              "& .MuiDataGrid-renderingZone": {
+                maxHeight: "none !important",
+              },
+              "& .MuiDataGrid-cell .MuiDataGrid-cellContent": {
+                maxHeight: "none",
+                whiteSpace: "normal",
+                lineHeight: "1.2",
+                width: "100%",
+              },
+            }}
           />
         </Box>
-
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <Typography variant="body2" color="text.secondary">
-            {filteredFundingCalls.length} von {fundingCalls.length}{" "}
-            Ausschreibungen
-          </Typography>
-
-          {showOnlyRelevant && (
-            <Chip
-              label="Nur relevante"
-              size="small"
-              color="success"
-              variant="outlined"
-            />
-          )}
-        </Box>
-      </Box>
-
-      <DataGrid
-        rows={filteredFundingCalls}
-        columns={columns}
-        loading={loading}
-        pageSizeOptions={[10, 25, 50]}
-        initialState={{
-          pagination: {
-            paginationModel: { pageSize: 10 },
-          },
-        }}
-        disableRowSelectionOnClick
-        getRowHeight={() => "auto"}
-        sx={{
-          border: 0,
-          "& .MuiDataGrid-cell": {
-            display: "flex",
-            alignItems: "flex-start", // Changed from center to flex-start for better text layout
-            lineHeight: "unset !important",
-            maxHeight: "none !important",
-            whiteSpace: "normal",
-            paddingTop: "12px", // Increased padding for better readability
-            paddingBottom: "12px",
-          },
-          "& .MuiDataGrid-cell:focus": {
-            outline: "none",
-          },
-          "& .MuiDataGrid-row": {
-            minHeight: "80px !important", // Minimum row height for description text
-          },
-          "& .MuiDataGrid-row:hover": {
-            backgroundColor: "action.hover",
-          },
-          "& .MuiDataGrid-renderingZone": {
-            maxHeight: "none !important",
-          },
-          "& .MuiDataGrid-cell .MuiDataGrid-cellContent": {
-            maxHeight: "none",
-            whiteSpace: "normal",
-            lineHeight: "1.2",
-            width: "100%", // Ensure full width usage
-          },
-        }}
-      />
-    </Paper>
+      </Paper>
+    </Box>
   );
 }
