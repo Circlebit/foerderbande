@@ -1,43 +1,72 @@
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
-import { Paper, Typography, Box, Chip } from "@mui/material";
-import { useFundingCalls } from "../hooks/useFundingCalls";
+import { Paper, Typography, Box, Chip, Link } from "@mui/material";
+import {
+  useFundingCalls,
+  type NormalizedFundingCall,
+} from "../hooks/useFundingCalls";
 
 export default function FundingCallsGrid() {
-  const { fundingCalls, loading, error } = useFundingCalls();
+  const { fundingCalls, loading, error, usingMockData } = useFundingCalls();
 
-  // Custom renderer for relevance score as colored chip
-  const renderRelevanceScore = (score: number) => {
-    const getColor = (score: number) => {
-      if (score >= 0.8) return "success";
-      if (score >= 0.6) return "warning";
-      return "default";
-    };
+  // Custom renderer for relevance as colored chip
+  const renderRelevance = (params: { row: NormalizedFundingCall }) => {
+    const { isRelevant } = params.row.relevanceInfo;
 
     return (
       <Chip
-        label={`${(score * 100).toFixed(0)}%`}
-        color={getColor(score)}
+        label={isRelevant ? "Relevant" : "Prüfen"}
+        color={isRelevant ? "success" : "default"}
         size="small"
-        variant="outlined"
+        variant={isRelevant ? "filled" : "outlined"}
       />
     );
   };
 
-  // Custom renderer for funding body from JSONB details
-  const renderFundingBody = (details: Record<string, any>) => {
-    const fundingBody = details?.funding_body || "Unbekannt";
-    return (
-      <Typography variant="body2" color="text.secondary">
-        {fundingBody}
-      </Typography>
-    );
-  };
-
   // Custom renderer for deadline with urgency indication
-  const renderDeadline = (deadline: string | null) => {
+  const renderDeadline = (params: { row: NormalizedFundingCall }) => {
+    const deadline = params.row.displayDeadline;
+
     if (!deadline) return "-";
 
-    const deadlineDate = new Date(deadline);
+    // Parse deadline - handle different formats
+    let deadlineDate: Date;
+    try {
+      // Try to parse German format first (from sample data)
+      if (
+        deadline.includes("Januar") ||
+        deadline.includes("Dezember") ||
+        deadline.includes("Februar")
+      ) {
+        // Handle German month names - simplified for PoC
+        const months: { [key: string]: number } = {
+          Januar: 0,
+          Februar: 1,
+          März: 2,
+          April: 3,
+          Mai: 4,
+          Juni: 5,
+          Juli: 6,
+          August: 7,
+          September: 8,
+          Oktober: 9,
+          November: 10,
+          Dezember: 11,
+        };
+
+        const match = deadline.match(/(\d{1,2})\.\s*(\w+)\s*(\d{4})/);
+        if (match) {
+          const [, day, month, year] = match;
+          deadlineDate = new Date(parseInt(year), months[month], parseInt(day));
+        } else {
+          deadlineDate = new Date(deadline);
+        }
+      } else {
+        deadlineDate = new Date(deadline);
+      }
+    } catch {
+      return deadline; // Fallback: just show raw string
+    }
+
     const today = new Date();
     const daysUntil = Math.ceil(
       (deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
@@ -55,12 +84,42 @@ export default function FundingCallsGrid() {
           {deadlineDate.toLocaleDateString("de-DE")}
         </Typography>
         <Typography
-          variant="subtitle2"
+          variant="caption"
           color={`${getUrgencyColor(daysUntil)}.main`}
         >
           {daysUntil > 0 ? `${daysUntil} Tage` : "Abgelaufen"}
         </Typography>
       </Box>
+    );
+  };
+
+  // Custom renderer for title with link
+  const renderTitle = (params: { row: NormalizedFundingCall }) => {
+    const { row } = params;
+    const url = row.source_url;
+
+    if (!url) {
+      return (
+        <Typography variant="body2" fontWeight={500}>
+          {row.title}
+        </Typography>
+      );
+    }
+
+    return (
+      <Link
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        underline="hover"
+        sx={{
+          color: "text.primary",
+          fontWeight: 500,
+          "&:hover": { color: "primary.main" },
+        }}
+      >
+        {row.title}
+      </Link>
     );
   };
 
@@ -70,37 +129,41 @@ export default function FundingCallsGrid() {
       field: "title",
       headerName: "Titel",
       flex: 2,
-      minWidth: 200,
+      minWidth: 250,
+      renderCell: renderTitle,
     },
     {
-      field: "funding_body",
-      headerName: "Fördergeber",
-      flex: 1,
-      minWidth: 150,
-      renderCell: (params) => renderFundingBody(params.row.details),
+      field: "relevance",
+      headerName: "Relevanz",
+      flex: 0.5,
+      minWidth: 100,
+      renderCell: renderRelevance,
     },
     {
       field: "deadline",
       headerName: "Frist",
       flex: 1,
       minWidth: 120,
-      renderCell: (params) => renderDeadline(params.value),
+      renderCell: renderDeadline,
     },
     {
-      field: "relevance_score",
-      headerName: "Relevanz",
-      flex: 0.5,
-      minWidth: 100,
-      renderCell: (params) => renderRelevanceScore(params.value),
-    },
-    {
-      field: "max_amount",
-      headerName: "Max. Förderung",
+      field: "funding_amount",
+      headerName: "Fördersumme",
       flex: 1,
-      minWidth: 130,
-      renderCell: (params) => {
-        const amount = params.row.details?.max_amount;
-        return amount ? `${amount.toLocaleString("de-DE")} €` : "-";
+      minWidth: 150,
+      renderCell: (params: { row: NormalizedFundingCall }) => {
+        const amount = params.row.fundingAmount;
+        return amount ? <Typography variant="body2">{amount}</Typography> : "-";
+      },
+    },
+    {
+      field: "duration",
+      headerName: "Laufzeit",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params: { row: NormalizedFundingCall }) => {
+        const duration = params.row.duration;
+        return duration || "-";
       },
     },
   ];
@@ -120,6 +183,15 @@ export default function FundingCallsGrid() {
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
         <Typography variant="h6" component="h2">
           Fördermittelausschreibungen
+          {usingMockData && (
+            <Chip
+              label="Mock-Daten"
+              size="small"
+              color="warning"
+              variant="outlined"
+              sx={{ ml: 1 }}
+            />
+          )}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {fundingCalls.length} Ausschreibungen gefunden
@@ -137,13 +209,31 @@ export default function FundingCallsGrid() {
           },
         }}
         disableRowSelectionOnClick
+        getRowHeight={() => "auto"}
         sx={{
           border: 0,
+          "& .MuiDataGrid-cell": {
+            display: "flex",
+            alignItems: "center",
+            lineHeight: "unset !important",
+            maxHeight: "none !important",
+            whiteSpace: "normal",
+            paddingTop: "8px",
+            paddingBottom: "8px",
+          },
           "& .MuiDataGrid-cell:focus": {
             outline: "none",
           },
           "& .MuiDataGrid-row:hover": {
             backgroundColor: "action.hover",
+          },
+          "& .MuiDataGrid-renderingZone": {
+            maxHeight: "none !important",
+          },
+          "& .MuiDataGrid-cell .MuiDataGrid-cellContent": {
+            maxHeight: "none",
+            whiteSpace: "normal",
+            lineHeight: "1.2",
           },
         }}
       />

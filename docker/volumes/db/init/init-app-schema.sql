@@ -1,68 +1,72 @@
--- Minimal Application Schema: Funding Calls
+-- Simple Application Schema: Funding Calls
+-- Start simple, add complexity later
 
--- Main table for funding calls
 CREATE TABLE IF NOT EXISTS funding_calls (
     id SERIAL PRIMARY KEY,
     
-    -- Core fields (always present)
+    -- Essential fields only
+    url TEXT UNIQUE NOT NULL,  -- Use URL as natural unique identifier
     title TEXT NOT NULL,
     description TEXT,
-    deadline DATE,
-    source_url TEXT,
     
-    -- Everything else flexible in JSONB
-    details JSONB DEFAULT '{}',
+    -- All the messy, variable data goes here
+    data JSONB NOT NULL DEFAULT '{}',
     
-    -- Simple relevance (can be calculated later)
-    relevance_score DECIMAL(3,2) DEFAULT 0.0,
-    
-    -- Timestamps
+    -- Simple timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Sample data for testing
-INSERT INTO funding_calls (title, description, deadline, source_url, details, relevance_score) VALUES 
-(
-    'EU-Förderung Jugendarbeit 2025',
-    'Förderung für innovative Projekte in der Jugendarbeit und Bildung.',
-    '2025-08-15',
-    'https://example.com/grant1',
-    '{
-        "funding_body": "Europäische Union",
-        "max_amount": 50000,
-        "target_groups": ["Jugendliche", "Bildungseinrichtungen"],
-        "keywords": ["Jugend", "Bildung", "Innovation"],
-        "status": "open"
-    }',
-    0.85
-),
-(
-    'Digitalisierung Bildung NRW',
-    'Unterstützung bei der digitalen Transformation von Bildungseinrichtungen.',
-    '2025-07-30',
-    'https://example.com/grant2',
+-- Basic indexes
+CREATE INDEX IF NOT EXISTS idx_funding_calls_data_gin ON funding_calls USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_funding_calls_updated_at ON funding_calls(updated_at DESC);
 
+-- Auto-update timestamp trigger
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_funding_calls_updated_at 
+    BEFORE UPDATE ON funding_calls 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Sample data - properly escaped JSON
+INSERT INTO funding_calls (url, title, description, data) VALUES 
+(
+    'https://foerdermittel-wissenswert.de/jugend-staerken/',
+    'JUGEND STÄRKEN: Brücken in die Eigenständigkeit (JUST BEst)',
+    'Das Programm "JUGEND STÄRKEN" fördert Projekte, die junge Menschen zwischen 14 und 26 Jahren unterstützen...',
     '{
-        "funding_body": "Land NRW",
-        "max_amount": 25000,
-        "target_groups": ["Schulen", "Vereine"],
-        "keywords": ["Digital", "Bildung", "Technologie"],
-        "status": "open"
-    }',
-    0.72
+        "_id": "https://foerdermittel-wissenswert.de/jugend-staerken/",
+        "url": "https://foerdermittel-wissenswert.de/jugend-staerken/",
+        "name": "JUGEND STÄRKEN: Brücken in die Eigenständigkeit (JUST BEst)",
+        "is_relevant": true,
+        "deadline": "29. Januar 2027, 15 Uhr",
+        "sum": "bis zu 300.000 Euro pro Jahr",
+        "timeframe": "bis spätestens 31. Dezember 2028",
+        "description": "Das Programm \"JUGEND STÄRKEN\" fördert Projekte, die junge Menschen zwischen 14 und 26 Jahren unterstützen, die sich in besonders schwierigen Lebenslagen befinden. Die Förderung erfolgt über vier methodische Bausteine, die die individuelle Stabilisierung und Begleitung der Zielgruppe zum Ziel haben. Die Antragsstellung erfolgt durch die Jugendämter, wobei freie Träger eine wichtige Rolle bei der Umsetzung spielen.",
+        "relevance_reason": "Die Ausschreibung richtet sich ausdrücklich an soziale Einrichtungen, da die Jugendämter als Träger der öffentlichen Jugendhilfe antragsberechtigt sind und die Projekte in Zusammenarbeit mit freien Trägern realisiert werden.",
+        "scraped_at": "2025-06-17T22:34:54.446111"
+    }'::jsonb
 ),
 (
-    'Bundesförderung Familienarbeit',
-    'Projekte zur Stärkung von Familien und Kindern.',
-    '2025-09-01',
-    'https://example.com/grant3',
+    'https://foerdermittel-wissenswert.de/partnerschaft-fuer-demokratie/',
+    'Partnerschaft für Demokratie',
+    'Die Partnerschaft für Demokratie ist ein Bundesprogramm, das lokale Bündnisse zur Förderung von Demokratie, Toleranz und Gewaltfreiheit unterstützt...',
     '{
-        "funding_body": "BMFSFJ",
-        "max_amount": 75000,
-        "target_groups": ["Familien", "Kinder"],
-        "keywords": ["Familie", "Kinder", "Soziale Arbeit"],
-        "status": "open"
-    }',
-    0.91
+        "_id": "https://foerdermittel-wissenswert.de/partnerschaft-fuer-demokratie/",
+        "url": "https://foerdermittel-wissenswert.de/partnerschaft-fuer-demokratie/",
+        "name": "Partnerschaft für Demokratie",
+        "is_relevant": true,
+        "deadline": null,
+        "sum": "bis zu 140.000 € pro Jahr, mit einzelnen Projekten bis zu 20.000 €",
+        "timeframe": null,
+        "description": "Die Partnerschaft für Demokratie ist ein Bundesprogramm, das lokale Bündnisse zur Förderung von Demokratie, Toleranz und Gewaltfreiheit unterstützt. Es richtet sich an soziale Einrichtungen sowie diverse lokale Akteure, die Projekte zur Verbesserung des Zusammenlebens entwickeln.",
+        "relevance_reason": "Die Ausschreibung richtet sich ausdrücklich an soziale und kulturelle Einrichtungen, die sich für Demokratie und ein tolerantes Zusammenleben engagieren.",
+        "scraped_at": "2025-06-17T22:36:29.715631"
+    }'::jsonb
 );
