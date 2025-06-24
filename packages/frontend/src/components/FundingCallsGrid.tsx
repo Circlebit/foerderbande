@@ -1,5 +1,14 @@
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
-import { Paper, Typography, Box, Chip, Link } from "@mui/material";
+import {
+  Paper,
+  Typography,
+  Box,
+  Chip,
+  Link,
+  FormControlLabel,
+  Switch,
+} from "@mui/material";
+import { useState } from "react";
 import {
   useFundingCalls,
   type NormalizedFundingCall,
@@ -7,6 +16,12 @@ import {
 
 export default function FundingCallsGrid() {
   const { fundingCalls, loading, error, usingMockData } = useFundingCalls();
+  const [showOnlyRelevant, setShowOnlyRelevant] = useState(true); // Default: nur relevante anzeigen
+
+  // Filter funding calls based on toggle
+  const filteredFundingCalls = showOnlyRelevant
+    ? fundingCalls.filter((call) => call.relevanceInfo.isRelevant)
+    : fundingCalls;
 
   // Custom renderer for relevance as colored chip
   const renderRelevance = (params: { row: NormalizedFundingCall }) => {
@@ -231,25 +246,62 @@ export default function FundingCallsGrid() {
   return (
     <Paper sx={{ width: "100%", height: 600 }}>
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-        <Typography variant="h6" component="h2">
-          Fördermittelausschreibungen
-          {usingMockData && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
+          <Typography variant="h6" component="h2">
+            Fördermittelausschreibungen
+            {usingMockData && (
+              <Chip
+                label="Mock-Daten"
+                size="small"
+                color="warning"
+                variant="outlined"
+                sx={{ ml: 1 }}
+              />
+            )}
+          </Typography>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showOnlyRelevant}
+                onChange={(e) => setShowOnlyRelevant(e.target.checked)}
+                color="primary"
+              />
+            }
+            label={
+              <Typography variant="body2">Nur relevante anzeigen</Typography>
+            }
+            labelPlacement="start"
+            sx={{ m: 0 }}
+          />
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          <Typography variant="body2" color="text.secondary">
+            {filteredFundingCalls.length} von {fundingCalls.length}{" "}
+            Ausschreibungen
+          </Typography>
+
+          {showOnlyRelevant && (
             <Chip
-              label="Mock-Daten"
+              label="Nur relevante"
               size="small"
-              color="warning"
+              color="success"
               variant="outlined"
-              sx={{ ml: 1 }}
             />
           )}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {fundingCalls.length} Ausschreibungen gefunden
-        </Typography>
+        </Box>
       </Box>
 
       <DataGrid
-        rows={fundingCalls}
+        rows={filteredFundingCalls}
         columns={columns}
         loading={loading}
         pageSizeOptions={[10, 25, 50]}
