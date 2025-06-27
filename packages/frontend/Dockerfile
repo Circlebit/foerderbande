@@ -23,6 +23,18 @@ CMD ["pnpm", "dev"]
 
 # Build stage - creates production build
 FROM base AS build
+
+# Accept build-time environment variables for Vite
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY  
+ARG VITE_USE_MOCK_DATA
+
+# Set environment variables for build process
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_USE_MOCK_DATA=$VITE_USE_MOCK_DATA
+
+# Build the application with embedded env vars
 RUN pnpm build
 
 # Production stage - serves static files

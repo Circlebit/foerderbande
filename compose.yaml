@@ -10,12 +10,12 @@ services:
     build:
       context: ./packages/frontend
       dockerfile: Dockerfile
-      target: development # Can be overridden for production
+      target: ${DOCKER_TARGET:-development} # Use env var or default to development
     container_name: fomo-frontend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_INTERNAL_PORT:-3000}"
     volumes:
-      # Development: mount source for hot reload
+      # Development: mount source for hot reload (only in dev mode)
       - ./packages/frontend/src:/app/src:ro
       - ./packages/frontend/public:/app/public:ro
       - ./packages/frontend/index.html:/app/index.html:ro
@@ -31,6 +31,26 @@ services:
     profiles:
       - frontend
       - full
+    restart: unless-stopped
+
+  # Production Frontend (nginx-only, no volumes)
+  frontend-prod:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        - VITE_SUPABASE_URL=${SUPABASE_PUBLIC_URL}
+        - VITE_SUPABASE_ANON_KEY=${ANON_KEY}
+        - VITE_USE_MOCK_DATA=${VITE_USE_MOCK_DATA:-false}
+    container_name: fomo-frontend-prod
+    ports:
+      - "${FRONTEND_PROD_PORT:-3002}:80"
+    depends_on:
+      - kong
+    profiles:
+      - production
+      - prod-test
     restart: unless-stopped
 
   # Future: Backend Service
