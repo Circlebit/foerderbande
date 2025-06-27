@@ -7,31 +7,29 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package.json pnpm-lock.yaml* ./
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install ALL dependencies (including dev dependencies for development builds)
+RUN pnpm install
 
-# Copy source code
+# Copy all source code
 COPY . .
 
-# Development stage
+# Development stage - extends base with dev server
 FROM base AS development
 EXPOSE 3000
-# Vite dev server with host binding for Docker
-CMD ["pnpm", "dev", "--host", "0.0.0.0"]
+CMD ["pnpm", "dev"]
 
-# Build stage
+# Build stage - creates production build
 FROM base AS build
-# Build the application
 RUN pnpm build
 
-# Production stage
+# Production stage - serves static files
 FROM nginx:alpine AS production
 # Copy custom nginx config
-COPY --from=build /app/docker/nginx.conf /etc/nginx/nginx.conf
-# Copy built assets
+COPY nginx.conf /etc/nginx/nginx.conf
+# Copy built assets from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

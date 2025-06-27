@@ -13,4 +13,17 @@ export default defineConfig({
   ],
   // Load environment variables from root directory
   envDir: "../../",
+  server: {
+    host: "0.0.0.0", // Allow external connections (important for Docker)
+    port: 3000,
+    strictPort: true, // Exit if port is already in use
+    watch: {
+      usePolling: true, // Enable polling for file changes in Docker
+    },
+  },
+  preview: {
+    host: "0.0.0.0",
+    port: 3000,
+    strictPort: true,
+  },
 });

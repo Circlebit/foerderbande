@@ -21,7 +21,6 @@ services:
       - ./packages/frontend/index.html:/app/index.html:ro
       - ./packages/frontend/vite.config.ts:/app/vite.config.ts:ro
       - ./packages/frontend/tsconfig.json:/app/tsconfig.json:ro
-      - ./packages/frontend/package.json:/app/package.json:ro
     environment:
       # Pass through Vite environment variables
       - VITE_SUPABASE_URL=${SUPABASE_PUBLIC_URL}
