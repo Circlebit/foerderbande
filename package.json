@@ -4,7 +4,7 @@
   "description": "funding opportunity monitor",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n docker,frontend \"pnpm dev:supabase 2>&1 | grep -v 'Logs last second\\|All logs logged'\" \"pnpm dev:frontend\"",
+    "dev": "concurrently -k -n docker,frontend \"pnpm dev:supabase\" \"pnpm dev:frontend\"",
     "dev:supabase": "docker compose --profile supabase up",
     "dev:frontend": "sleep 10 && pnpm --filter fomo-frontend dev",
     "dev:frontend:docker": "docker compose --profile frontend up --build",
