@@ -4,13 +4,22 @@
   "description": "funding opportunity monitor",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n docker,frontend \"pnpm dev:docker\" \"pnpm dev:frontend\"",
-    "dev:docker": "docker compose up",
-    "dev:frontend": "pnpm --filter fomo-frontend dev",
+    "dev": "concurrently -k -n docker,frontend \"pnpm dev:supabase 2>&1 | grep -v 'Logs last second\\|All logs logged'\" \"pnpm dev:frontend\"",
+    "dev:supabase": "docker compose --profile supabase up",
+    "dev:frontend": "sleep 10 && pnpm --filter fomo-frontend dev",
+    "dev:frontend:docker": "docker compose --profile frontend up --build",
+    "dev:full": "docker compose --profile full up --build",
     "dev:logs": "docker compose logs -f",
     "dev:down": "docker compose down",
-    "dev:clean": "docker compose down -v && docker volume prune -f && rm -rf docker/volumes/db/data",
-    "gen:types": "npx supabase gen types typescript --db-url \"postgresql://postgres:your-super-secret-and-long-postgres-password@localhost:5432/postgres\" > packages/frontend/src/types/database.ts"
+    "dev:clean": "docker compose down -v --remove-orphans && docker volume prune -f && rm -rf ./supabase/volumes/db/data",
+    "build": "pnpm --filter fomo-frontend build",
+    "build:frontend": "docker compose build frontend",
+    "start": "docker compose --profile full up -d",
+    "stop": "docker compose down",
+    "gen:types": "npx supabase gen types typescript --db-url \"postgresql://postgres:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@localhost:5432/postgres\" > packages/frontend/src/types/database.ts",
+    "db:reset": "docker compose down db && docker volume rm fomo_db-config || true && docker compose up db -d",
+    "logs:frontend": "docker compose logs -f frontend",
+    "logs:supabase": "docker compose logs -f db rest auth meta studio kong"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
