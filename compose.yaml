@@ -1,197 +1,71 @@
 name: fomo
 
+# Include Supabase Stack
+include:
+  - supabase/docker-compose.yml
+
 services:
-  # PostgreSQL Database (mit Supabase Extensions)
-  db:
-    container_name: supabase-db
-    image: supabase/postgres:15.8.1.060
-    restart: unless-stopped
+  # Frontend Service
+  frontend:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      target: ${DOCKER_TARGET:-development} # Use env var or default to development
+    container_name: fomo-frontend
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_INTERNAL_PORT:-3000}"
     volumes:
-      # Must be superuser to alter reserved role
-      - ./docker/volumes/db/init/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
-      # Initialize the database settings with JWT_SECRET and JWT_EXP
-      - ./docker/volumes/db/init/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      # PGDATA directory is persisted between restarts
-      - ./docker/volumes/db/data:/var/lib/postgresql/data:Z
-      # Use named volume to persist pgsodium decryption key between restarts
-      - db-config:/etc/postgresql-custom
-
-      # initial schema (maybe do this as migration after prototyping phase)
-      - ./docker/volumes/db/init/init-app-schema.sql:/docker-entrypoint-initdb.d/init-scripts/50-app-schema.sql:Z
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      # Development: mount source for hot reload (only in dev mode)
+      - ./packages/frontend/src:/app/src:ro
+      - ./packages/frontend/public:/app/public:ro
+      - ./packages/frontend/index.html:/app/index.html:ro
+      - ./packages/frontend/vite.config.ts:/app/vite.config.ts:ro
+      - ./packages/frontend/tsconfig.json:/app/tsconfig.json:ro
     environment:
-      POSTGRES_HOST: /var/run/postgresql
-      PGPORT: ${POSTGRES_PORT}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGDATABASE: ${POSTGRES_DB}
-      POSTGRES_DB: ${POSTGRES_DB}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXP: ${JWT_EXPIRY}
-    command:
-      [
-        "postgres",
-        "-c",
-        "config_file=/etc/postgresql/postgresql.conf",
-        "-c",
-        "log_min_messages=fatal",
-      ]
-
-  # PostgREST API
-  rest:
-    container_name: supabase-rest
-    image: postgrest/postgrest:v12.2.12
-    restart: unless-stopped
+      # Pass through Vite environment variables
+      - VITE_SUPABASE_URL=${SUPABASE_PUBLIC_URL}
+      - VITE_SUPABASE_ANON_KEY=${ANON_KEY}
+      - VITE_USE_MOCK_DATA=${VITE_USE_MOCK_DATA:-false}
     depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS}
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${JWT_SECRET}
-      PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
-      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
-    command: ["postgrest"]
-
-  # Supabase Auth
-  auth:
-    container_name: supabase-auth
-    image: supabase/gotrue:v2.174.0
+      - kong # Wait for Supabase API Gateway
+    profiles:
+      - frontend
+      - full
     restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:9999/health",
-        ]
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      GOTRUE_API_HOST: 0.0.0.0
-      GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
 
-      GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-
-      GOTRUE_SITE_URL: ${SITE_URL}
-      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
-      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
-
-      GOTRUE_JWT_ADMIN_ROLES: service_role
-      GOTRUE_JWT_AUD: authenticated
-      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
-      GOTRUE_JWT_EXP: ${JWT_EXPIRY}
-      GOTRUE_JWT_SECRET: ${JWT_SECRET}
-
-      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP}
-      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS}
-      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
-
-      # SMTP Settings
-      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
-      GOTRUE_SMTP_HOST: ${SMTP_HOST}
-      GOTRUE_SMTP_PORT: ${SMTP_PORT}
-      GOTRUE_SMTP_USER: ${SMTP_USER}
-      GOTRUE_SMTP_PASS: ${SMTP_PASS}
-      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
-
-      GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
-      GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
-
-  # postgres-meta (für Studio)
-  meta:
-    container_name: supabase-meta
-    image: supabase/postgres-meta:v0.89.3
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PG_META_PORT: 8080
-      PG_META_DB_HOST: ${POSTGRES_HOST}
-      PG_META_DB_PORT: ${POSTGRES_PORT}
-      PG_META_DB_NAME: ${POSTGRES_DB}
-      PG_META_DB_USER: supabase_admin
-      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
-
-  # Supabase Studio
-  studio:
-    container_name: supabase-studio
-    image: supabase/studio:2025.06.02-sha-8f2993d
-    restart: unless-stopped
+  # Production Frontend (nginx-only, no volumes)
+  frontend-prod:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        - VITE_SUPABASE_URL=${SUPABASE_PUBLIC_URL}
+        - VITE_SUPABASE_ANON_KEY=${ANON_KEY}
+        - VITE_USE_MOCK_DATA=${VITE_USE_MOCK_DATA:-false}
+    container_name: fomo-frontend-prod
     ports:
-      - "${STUDIO_PORT}:3000"
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})",
-        ]
-      timeout: 10s
-      interval: 5s
-      retries: 3
+      - "${FRONTEND_PROD_PORT:-3002}:80"
     depends_on:
-      kong:
-        condition: service_started
-    environment:
-      STUDIO_PG_META_URL: http://meta:8080
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
-      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
-
-      # Kong Gateway URLs
-      SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      AUTH_JWT_SECRET: ${JWT_SECRET}
-
-  # Kong API Gateway
-  kong:
-    container_name: supabase-kong
-    image: kong:2.8.1
+      - kong
+    profiles:
+      - production
+      - prod-test
     restart: unless-stopped
-    ports:
-      - ${KONG_HTTP_PORT}:8000/tcp
-      - ${KONG_HTTPS_PORT}:8443/tcp
-    volumes:
-      # Kong config file
-      - ./docker/volumes/api/kong.yml:/home/kong/temp.yml:z
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
-      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-      # Kong specific env vars
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
-      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    # Parse template and start kong
-    entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
-volumes:
-  db-config:
+  # Future: Backend Service
+  # backend:
+  #   build:
+  #     context: ./packages/backend
+  #     dockerfile: Dockerfile
+  #   container_name: fomo-backend
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  #     - SUPABASE_URL=${SUPABASE_PUBLIC_URL}
+  #     - SUPABASE_SERVICE_KEY=${SERVICE_ROLE_KEY}
+  #   depends_on:
+  #     - db
+  #   profiles:
+  #     - backend
+  #     - full
+  #   restart: unless-stopped

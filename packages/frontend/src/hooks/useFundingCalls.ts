@@ -31,14 +31,15 @@ interface UseFundingCallsReturn {
 // Normalized interface for UI consumption - always the same structure regardless of data source
 export interface NormalizedFundingCall extends FundingCall {
   // Helper getters for UI - always returns the right value regardless of source
+  // Fixed: Use undefined instead of null to match common JS/React patterns
   readonly relevanceInfo: {
     isRelevant: boolean;
     reason?: string;
-    score?: number;
+    score?: number; // Changed from number | null to number | undefined
   };
-  readonly fundingAmount?: string;
-  readonly duration?: string;
-  readonly displayDeadline?: string;
+  readonly fundingAmount?: string; // Changed from string | null to string | undefined
+  readonly duration?: string; // Changed from string | null to string | undefined
+  readonly displayDeadline?: string; // Changed from string | null to string | undefined
 }
 
 // Legacy mock data format (from colleague's scraper)
@@ -118,27 +119,30 @@ export function useFundingCalls(): UseFundingCallsReturn {
               false;
             return {
               isRelevant,
-              reason: details?.relevance_reason,
-              score: call.relevance_score,
+              reason: details?.relevance_reason || undefined, // Convert null to undefined
+              score: call.relevance_score ?? undefined, // Convert null to undefined using nullish coalescing
             };
           },
           get fundingAmount() {
-            return details?.funding_amount || null;
+            // Convert null to undefined for consistent API
+            return details?.funding_amount ?? undefined;
           },
           get duration() {
-            return details?.duration || null;
+            // Convert null to undefined for consistent API
+            return details?.duration ?? undefined;
           },
           get displayDeadline() {
-            // Prefer top-level deadline, fallback to details
-            return call.deadline || null;
+            // Prefer top-level deadline, fallback to details, convert null to undefined
+            return call.deadline ?? undefined;
           },
         };
 
         return normalized;
       });
     },
-    []
+    [] // No dependencies needed - this function is pure
   );
+
   /**
    * Sort funding calls by relevance and update time
    * Applies consistent sorting logic for both mock and real data
@@ -162,7 +166,7 @@ export function useFundingCalls(): UseFundingCallsReturn {
         return bTime - aTime;
       });
     },
-    []
+    [] // No dependencies needed - this function is pure
   );
 
   /**
@@ -221,7 +225,7 @@ export function useFundingCalls(): UseFundingCallsReturn {
     } finally {
       setLoading(false);
     }
-  }, [sortFundingCalls]);
+  }, [normalizeFundingCalls, sortFundingCalls]); // Fixed: Added missing dependencies
 
   /**
    * Fetch funding calls from Supabase database
@@ -255,7 +259,7 @@ export function useFundingCalls(): UseFundingCallsReturn {
     } finally {
       setLoading(false);
     }
-  }, [sortFundingCalls]);
+  }, [normalizeFundingCalls, sortFundingCalls]); // Fixed: Added missing dependencies
 
   // Choose which fetch function to use based on environment
   const fetchFunction = useMockData ? fetchMockData : fetchFundingCalls;

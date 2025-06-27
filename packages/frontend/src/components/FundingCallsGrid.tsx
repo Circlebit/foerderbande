@@ -53,7 +53,7 @@ export default function FundingCallsGrid() {
 
   // Custom renderer for relevance with manual override
   const renderRelevance = (params: { row: NormalizedFundingCall }) => {
-    const aiRelevant = params.row.relevanceInfo.isRelevant;
+    // const aiRelevant = params.row.relevanceInfo.isRelevant;
     const effectiveRelevant = getEffectiveRelevance(params.row);
     const hasOverride = manualOverrides[params.row.id] !== undefined;
 
@@ -175,34 +175,34 @@ export default function FundingCallsGrid() {
   };
 
   // Custom renderer for title with link
-  const renderTitle = (params: { row: NormalizedFundingCall }) => {
-    const { row } = params;
-    const url = row.source_url;
+  // const renderTitle = (params: { row: NormalizedFundingCall }) => {
+  //   const { row } = params;
+  //   const url = row.source_url;
 
-    if (!url) {
-      return (
-        <Typography variant="body2" fontWeight={500}>
-          {row.title}
-        </Typography>
-      );
-    }
+  //   if (!url) {
+  //     return (
+  //       <Typography variant="body2" fontWeight={500}>
+  //         {row.title}
+  //       </Typography>
+  //     );
+  //   }
 
-    return (
-      <Link
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        underline="hover"
-        sx={{
-          color: "text.primary",
-          fontWeight: 500,
-          "&:hover": { color: "primary.main" },
-        }}
-      >
-        {row.title}
-      </Link>
-    );
-  };
+  //   return (
+  //     <Link
+  //       href={url}
+  //       target="_blank"
+  //       rel="noopener noreferrer"
+  //       underline="hover"
+  //       sx={{
+  //         color: "text.primary",
+  //         fontWeight: 500,
+  //         "&:hover": { color: "primary.main" },
+  //       }}
+  //     >
+  //       {row.title}
+  //     </Link>
+  //   );
+  // };
 
   // Column definitions for DataGrid
   const columns: GridColDef[] = [
