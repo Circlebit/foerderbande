@@ -11,7 +11,7 @@
     "dev:full": "docker compose --profile full up --build",
     "dev:logs": "docker compose logs -f",
     "dev:down": "docker compose down",
-    "dev:clean": "docker compose down -v --remove-orphans && docker volume prune -f",
+    "dev:clean": "docker compose down -v --remove-orphans && docker volume prune -f && rm -rf ./supabase/volumes/db/data",
     "build": "pnpm --filter fomo-frontend build",
     "build:prod": "docker compose build frontend-prod",
     "test:prod": "docker compose --profile prod-test up --build",
@@ -21,12 +21,12 @@
     "db:reset": "docker compose down db && docker volume rm fomo_db-config || true && docker compose up db -d",
     "logs:frontend": "docker compose logs -f frontend",
     "logs:supabase": "docker compose logs -f db rest auth meta studio kong",
-    "logs:prod": "docker compose logs -f frontend-prod"
+    "logs:prod": "docker compose logs -f frontend-prod",
+    "create-test-users": "node scripts/create-test-users.mjs"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
-    "dotenv-cli": "^8.0.0",
-    "supabase": "^2.26.9"
+    "@supabase/supabase-js": "^2.50.0",
+    "concurrently": "^9.1.2"
   },
   "engines": {
     "node": ">=20.0.0",
