@@ -413,6 +413,9 @@ services:
         "-c",
         "log_min_messages=fatal", # prevents Realtime polling queries from appearing in logs
       ]
+    ports:
+      # Direkter PostgreSQL-Zugang (für Type-Generation und lokale Tools)
+      - "5433:5432"
 
   vector:
     container_name: supabase-vector

@@ -76,7 +76,7 @@ export default function LoginPage() {
         >
           <Box sx={{ textAlign: "center", mb: 3 }}>
             <Typography variant="h4" component="h1" gutterBottom>
-              FOMo
+              fomo
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Funding Opportunity Monitor

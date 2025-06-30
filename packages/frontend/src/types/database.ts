@@ -37,38 +37,67 @@ export type Database = {
       funding_calls: {
         Row: {
           created_at: string | null
-          deadline: string | null
+          data: Json
           description: string | null
-          details: Json | null
           id: number
-          relevance_score: number | null
-          source_url: string | null
           title: string
           updated_at: string | null
+          url: string
         }
         Insert: {
           created_at?: string | null
-          deadline?: string | null
+          data?: Json
           description?: string | null
-          details?: Json | null
           id?: number
-          relevance_score?: number | null
-          source_url?: string | null
           title: string
           updated_at?: string | null
+          url: string
         }
         Update: {
           created_at?: string | null
-          deadline?: string | null
+          data?: Json
           description?: string | null
-          details?: Json | null
           id?: number
-          relevance_score?: number | null
-          source_url?: string | null
           title?: string
           updated_at?: string | null
+          url?: string
         }
         Relationships: []
+      }
+      user_funding_calls: {
+        Row: {
+          created_at: string | null
+          funding_call_id: number
+          id: number
+          settings: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          funding_call_id: number
+          id?: number
+          settings?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          funding_call_id?: number
+          id?: number
+          settings?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_funding_calls_funding_call_id_fkey"
+            columns: ["funding_call_id"]
+            isOneToOne: false
+            referencedRelation: "funding_calls"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

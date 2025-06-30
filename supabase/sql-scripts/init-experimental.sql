@@ -70,3 +70,66 @@ INSERT INTO funding_calls (url, title, description, data) VALUES
         "scraped_at": "2025-06-17T22:36:29.715631"
     }'::jsonb
 );
+
+
+
+-- User-specific funding call settings (Junction table)
+-- Allows users to mark favorites, add notes, etc.
+
+CREATE TABLE IF NOT EXISTS user_funding_calls (
+    id SERIAL PRIMARY KEY,
+    
+    -- Foreign keys
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    funding_call_id INTEGER NOT NULL REFERENCES funding_calls(id) ON DELETE CASCADE,
+    
+    -- User-specific settings as flexible JSONB
+    -- Examples: {"favorite": true, "notes": "...", "priority": "high", "reminder_date": "2025-03-15"}
+    settings JSONB NOT NULL DEFAULT '{}',
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure one record per user-funding_call combination
+    UNIQUE(user_id, funding_call_id)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_user_funding_calls_user_id ON user_funding_calls(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_funding_calls_funding_call_id ON user_funding_calls(funding_call_id);
+CREATE INDEX IF NOT EXISTS idx_user_funding_calls_settings_gin ON user_funding_calls USING GIN (settings);
+
+-- Auto-update timestamp trigger (reuse existing function)
+CREATE TRIGGER update_user_funding_calls_updated_at 
+    BEFORE UPDATE ON user_funding_calls 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Row Level Security (RLS) - Users can only see/modify their own settings
+ALTER TABLE user_funding_calls ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can view their own funding call settings
+CREATE POLICY "Users can view their own funding call settings" 
+ON user_funding_calls FOR SELECT 
+USING (auth.uid() = user_id);
+
+-- Policy: Users can insert their own funding call settings
+CREATE POLICY "Users can insert their own funding call settings" 
+ON user_funding_calls FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can update their own funding call settings
+CREATE POLICY "Users can update their own funding call settings" 
+ON user_funding_calls FOR UPDATE 
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can delete their own funding call settings
+CREATE POLICY "Users can delete their own funding call settings" 
+ON user_funding_calls FOR DELETE 
+USING (auth.uid() = user_id);
+
+-- Sample data for testing (will be inserted programmatically later)
+-- INSERT INTO user_funding_calls (user_id, funding_call_id, settings) VALUES 
+-- ('example-user-uuid', 1, '{"favorite": true}'),
+-- ('example-user-uuid', 2, '{"favorite": false, "notes": "Not relevant for our org"}');

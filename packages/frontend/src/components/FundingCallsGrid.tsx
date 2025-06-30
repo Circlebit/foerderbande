@@ -8,15 +8,25 @@ import {
   FormControlLabel,
   Switch,
   Tooltip,
+  IconButton,
 } from "@mui/material";
+import { StarOutlined, Star } from "@mui/icons-material";
 import { useState, useCallback } from "react";
 import {
   useFundingCalls,
   type NormalizedFundingCall,
 } from "../hooks/useFundingCalls";
+import { useUserFundingCallSettings } from "../hooks/useUserFundingCallsSettings";
 
 export default function FundingCallsGrid() {
   const { fundingCalls, loading, error, usingMockData } = useFundingCalls();
+  const {
+    toggleFavorite,
+    isFavorite,
+    loading: settingsLoading,
+    error: settingsError,
+  } = useUserFundingCallSettings();
+
   const [showOnlyRelevant, setShowOnlyRelevant] = useState(true);
 
   // Track manual overrides (user corrections)
@@ -46,10 +56,55 @@ export default function FundingCallsGrid() {
     [manualOverrides]
   );
 
+  // Handle favorite toggle with error handling
+  const handleFavoriteToggle = useCallback(
+    async (fundingCallId: number, event: React.MouseEvent) => {
+      // Prevent event bubbling to avoid row selection
+      event.stopPropagation();
+
+      try {
+        await toggleFavorite(fundingCallId);
+      } catch (err) {
+        console.error("Failed to toggle favorite:", err);
+        // Error is already handled by the hook, just log here
+      }
+    },
+    [toggleFavorite]
+  );
+
   // Filter funding calls based on toggle and manual overrides
   const filteredFundingCalls = showOnlyRelevant
     ? fundingCalls.filter((call) => getEffectiveRelevance(call))
     : fundingCalls;
+
+  // Custom renderer for favorite star
+  const renderFavorite = (params: { row: NormalizedFundingCall }) => {
+    const isCallFavorite = isFavorite(params.row.id);
+    const tooltipText = isCallFavorite
+      ? "Aus Favoriten entfernen"
+      : "Zu Favoriten hinzufügen";
+
+    return (
+      <Tooltip title={tooltipText}>
+        <IconButton
+          size="small"
+          onClick={(event) => handleFavoriteToggle(params.row.id, event)}
+          disabled={settingsLoading}
+          sx={{
+            color: isCallFavorite ? "warning.main" : "action.disabled",
+            "&:hover": {
+              color: isCallFavorite ? "warning.dark" : "warning.light",
+            },
+            // Ensure consistent size
+            width: 32,
+            height: 32,
+          }}
+        >
+          {isCallFavorite ? <Star /> : <StarOutlined />}
+        </IconButton>
+      </Tooltip>
+    );
+  };
 
   // Custom renderer for relevance with manual override
   const renderRelevance = (params: { row: NormalizedFundingCall }) => {
@@ -174,38 +229,19 @@ export default function FundingCallsGrid() {
     );
   };
 
-  // Custom renderer for title with link
-  // const renderTitle = (params: { row: NormalizedFundingCall }) => {
-  //   const { row } = params;
-  //   const url = row.source_url;
-
-  //   if (!url) {
-  //     return (
-  //       <Typography variant="body2" fontWeight={500}>
-  //         {row.title}
-  //       </Typography>
-  //     );
-  //   }
-
-  //   return (
-  //     <Link
-  //       href={url}
-  //       target="_blank"
-  //       rel="noopener noreferrer"
-  //       underline="hover"
-  //       sx={{
-  //         color: "text.primary",
-  //         fontWeight: 500,
-  //         "&:hover": { color: "primary.main" },
-  //       }}
-  //     >
-  //       {row.title}
-  //     </Link>
-  //   );
-  // };
-
   // Column definitions for DataGrid
   const columns: GridColDef[] = [
+    {
+      field: "favorite",
+      headerName: "",
+      width: 60,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: renderFavorite,
+      headerAlign: "center",
+      align: "center",
+    },
     {
       field: "title",
       headerName: "Name der Förderung",
@@ -299,11 +335,14 @@ export default function FundingCallsGrid() {
     },
   ];
 
-  if (error) {
+  // Show error if either funding calls or settings have errors
+  const displayError = error || settingsError;
+
+  if (displayError) {
     return (
       <Paper sx={{ p: 3 }}>
         <Typography color="error">
-          Fehler beim Laden der Daten: {error}
+          Fehler beim Laden der Daten: {displayError}
         </Typography>
       </Paper>
     );
@@ -373,14 +412,15 @@ export default function FundingCallsGrid() {
               Ausschreibungen
             </Typography>
 
-            {/* {showOnlyRelevant && (
+            {/* Show loading indicator for settings */}
+            {settingsLoading && (
               <Chip
-                label="Nur relevante"
+                label="Favoriten werden geladen..."
                 size="small"
-                color="success"
+                color="info"
                 variant="outlined"
               />
-            )} */}
+            )}
           </Box>
         </Box>
 

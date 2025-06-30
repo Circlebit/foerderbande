@@ -5,9 +5,15 @@ import type { Database, Json } from "../types/database";
 // Type alias for funding call from our database schema
 export type FundingCall = Database["public"]["Tables"]["funding_calls"]["Row"];
 
-// Type for the details JSONB field structure (what we expect to store in there)
-// Keep it simple for TypeScript compatibility - we'll use type assertions when needed
-type FundingCallDetails = {
+// Type for the data JSONB field structure (what we expect to store in there)
+// This matches the current schema where all variable data goes into the 'data' field
+type FundingCallData = {
+  // Legacy fields from old schema
+  deadline?: string;
+  relevance_score?: number;
+  source_url?: string;
+
+  // New structured fields
   is_relevant?: boolean;
   relevance_reason?: string;
   funding_amount?: string;
@@ -29,17 +35,18 @@ interface UseFundingCallsReturn {
 }
 
 // Normalized interface for UI consumption - always the same structure regardless of data source
+// FIXED: Match actual database schema - extends FundingCall but adds convenience getters
 export interface NormalizedFundingCall extends FundingCall {
   // Helper getters for UI - always returns the right value regardless of source
-  // Fixed: Use undefined instead of null to match common JS/React patterns
   readonly relevanceInfo: {
     isRelevant: boolean;
     reason?: string;
-    score?: number; // Changed from number | null to number | undefined
+    score?: number;
   };
-  readonly fundingAmount?: string; // Changed from string | null to string | undefined
-  readonly duration?: string; // Changed from string | null to string | undefined
-  readonly displayDeadline?: string; // Changed from string | null to string | undefined
+  readonly fundingAmount?: string;
+  readonly duration?: string;
+  readonly displayDeadline?: string;
+  readonly source_url?: string; // Convenience getter for URL
 }
 
 // Legacy mock data format (from colleague's scraper)
@@ -63,15 +70,16 @@ interface LegacyFundingCall {
 function transformLegacyData(legacyData: LegacyFundingCall[]): FundingCall[] {
   return legacyData.map((item, index) => ({
     id: index + 1, // Generate sequential IDs for mock data
-    source_url: item.url,
+    url: item.url, // Current schema uses 'url' not 'source_url'
     title: item.NameDerFoerderung || "Unbenannte Förderung",
     description: item.Beschreibung,
-    deadline: item.Antragsfrist,
     created_at: item.scraped_at,
     updated_at: item.scraped_at,
-    relevance_score: item.ist_geeignet ? 0.8 : 0.2, // Mock relevance score
-    details: {
-      // Store additional data in JSONB details field
+    data: {
+      // Store all variable data in JSONB 'data' field (current schema)
+      deadline: item.Antragsfrist,
+      relevance_score: item.ist_geeignet ? 0.8 : 0.2,
+      source_url: item.url, // Store original URL in data for backwards compatibility
       funding_amount: item.Foerdersumme,
       duration: item.Laufzeit,
       is_relevant: item.ist_geeignet,
@@ -107,33 +115,40 @@ export function useFundingCalls(): UseFundingCallsReturn {
   const normalizeFundingCalls = useCallback(
     (data: FundingCall[]): NormalizedFundingCall[] => {
       return data.map((call) => {
-        const details = call.details as FundingCallDetails | null;
+        const dataFields = call.data as FundingCallData | null;
 
         // Create normalized object with getters
         const normalized: NormalizedFundingCall = {
+          // Spread all base properties from FundingCall
           ...call,
           get relevanceInfo() {
             const isRelevant =
-              (call.relevance_score !== null && call.relevance_score > 0.5) ||
-              details?.is_relevant ||
+              (dataFields?.relevance_score !== null &&
+                dataFields?.relevance_score !== undefined &&
+                dataFields.relevance_score > 0.5) ||
+              dataFields?.is_relevant ||
               false;
             return {
               isRelevant,
-              reason: details?.relevance_reason || undefined, // Convert null to undefined
-              score: call.relevance_score ?? undefined, // Convert null to undefined using nullish coalescing
+              reason: dataFields?.relevance_reason || undefined,
+              score: dataFields?.relevance_score ?? undefined,
             };
           },
           get fundingAmount() {
             // Convert null to undefined for consistent API
-            return details?.funding_amount ?? undefined;
+            return dataFields?.funding_amount ?? undefined;
           },
           get duration() {
             // Convert null to undefined for consistent API
-            return details?.duration ?? undefined;
+            return dataFields?.duration ?? undefined;
           },
           get displayDeadline() {
-            // Prefer top-level deadline, fallback to details, convert null to undefined
-            return call.deadline ?? undefined;
+            // Extract deadline from data field
+            return dataFields?.deadline ?? undefined;
+          },
+          get source_url() {
+            // Provide backwards compatibility - prefer data.source_url, fallback to main url
+            return dataFields?.source_url ?? call.url;
           },
         };
 

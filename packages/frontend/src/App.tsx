@@ -22,7 +22,7 @@ function App() {
         <AppBar position="static" elevation={1}>
           <Toolbar>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              FOMo - Funding Opportunity Monitor
+              fomo - Funding Opportunity Monitor
             </Typography>
 
             {user && (
