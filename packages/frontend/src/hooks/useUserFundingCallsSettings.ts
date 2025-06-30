@@ -1,16 +1,26 @@
 import { useCallback, useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { useAuth } from "./useAuth";
-import type { Json } from "../types/database";
+// import type { Json } from "../types/database";
 
 // Type for the settings JSONB field structure
+// Must match Supabase Json type - no 'undefined' allowed, only 'null'
 interface FundingCallUserSettings {
   favorite?: boolean | null;
   notes?: string | null;
   priority?: "low" | "medium" | "high" | null;
   reminder_date?: string | null;
-  [key: string]: Json; // Allow additional custom fields but type-safe
+  // Use Record type instead of index signature for better type safety
 }
+
+// // Helper type for merging settings (allows undefined for partial updates)
+// type PartialFundingCallUserSettings = {
+//   favorite?: boolean | null;
+//   notes?: string | null;
+//   priority?: "low" | "medium" | "high" | null;
+//   reminder_date?: string | null;
+//   [key: string]: Json | undefined; // This is for internal use only
+// };
 
 interface UseUserFundingCallSettingsReturn {
   // Favorite-specific methods
