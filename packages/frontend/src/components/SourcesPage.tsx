@@ -285,8 +285,7 @@ export default function SourcesPage() {
               Crawling-Quellen
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Doppelklicken Sie auf Name oder URL zum Bearbeiten. Neue Quellen
-              werden automatisch erstellt.
+              Doppelklicken Sie auf Name oder URL zum Bearbeiten.
             </Typography>
           </Box>
           <Box sx={{ display: "flex", gap: 1 }}>
