@@ -60,6 +60,11 @@ export default function Navbar() {
               sx={{ textTransform: "none" }}
             />
             <Tab
+              label="Quellen"
+              value="sources"
+              sx={{ textTransform: "none" }}
+            />
+            <Tab
               label="Einstellungen"
               value="settings"
               sx={{ textTransform: "none" }}

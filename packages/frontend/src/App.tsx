@@ -3,6 +3,7 @@ import FundingCallsGrid from "./components/FundingCallsGrid";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import SettingsPage from "./components/SettingsPage";
+import SourcesPage from "./components/SourcesPage";
 import { useNavigation } from "./hooks/useNavigation";
 
 function App() {
@@ -12,6 +13,8 @@ function App() {
     switch (currentPage) {
       case "funding-calls":
         return <FundingCallsGrid />;
+      case "sources":
+        return <SourcesPage />;
       case "settings":
         return <SettingsPage />;
       default:
@@ -31,8 +34,8 @@ function App() {
             flex: 1,
             overflow: "hidden",
             // Different overflow behavior for different pages
-            ...(currentPage === "settings" && {
-              overflow: "auto", // Settings page needs scrolling
+            ...((currentPage === "settings" || currentPage === "sources") && {
+              overflow: "auto", // Settings and Sources pages need scrolling
             }),
           }}
         >

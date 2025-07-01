@@ -64,6 +64,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sources: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          description: string | null
+          id: number
+          is_active: boolean | null
+          name: string
+          source_type: string | null
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_active?: boolean | null
+          name: string
+          source_type?: string | null
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_active?: boolean | null
+          name?: string
+          source_type?: string | null
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       user_funding_calls: {
         Row: {
           created_at: string | null
