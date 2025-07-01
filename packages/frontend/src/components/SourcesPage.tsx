@@ -2,10 +2,6 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
   Chip,
   IconButton,
   Alert,
@@ -16,14 +12,17 @@ import {
   TextField,
   FormControlLabel,
   Switch,
-  Fab,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
+import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  ToggleOn as ToggleOnIcon,
+  ToggleOff as ToggleOffIcon,
 } from "@mui/icons-material";
 import { useState, useCallback } from "react";
 import {
@@ -178,6 +177,16 @@ export default function SourcesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
 
+  // Debug log
+  console.log(
+    "SourcesPage: sources =",
+    sources,
+    "loading =",
+    loading,
+    "error =",
+    error
+  );
+
   const handleCreateSource = useCallback(
     async (data: SourceInsert) => {
       await createSource(data);
@@ -203,6 +212,13 @@ export default function SourcesPage() {
     [deleteSource]
   );
 
+  const handleToggleActive = useCallback(
+    async (id: number) => {
+      await toggleActive(id);
+    },
+    [toggleActive]
+  );
+
   const openCreateDialog = () => {
     setEditingSource(null);
     setDialogOpen(true);
@@ -217,6 +233,74 @@ export default function SourcesPage() {
     setDialogOpen(false);
     setEditingSource(null);
   };
+
+  // Column definitions for DataGrid - simplified for debugging
+  const columns: GridColDef[] = [
+    {
+      field: "name",
+      headerName: "Name",
+      flex: 2,
+      minWidth: 200,
+    },
+    {
+      field: "url",
+      headerName: "URL",
+      flex: 2,
+      minWidth: 250,
+    },
+    // {
+    //   field: "source_type",
+    //   headerName: "Typ",
+    //   width: 120,
+    // },
+    {
+      field: "is_active",
+      headerName: "Status",
+      width: 100,
+      renderCell: (params) => (
+        <Chip
+          label={params.row.is_active ? "Aktiv" : "Inaktiv"}
+          color={params.row.is_active ? "success" : "error"}
+          size="small"
+          variant="outlined"
+        />
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Aktionen",
+      width: 200,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Tooltip title={params.row.is_active ? "Deaktivieren" : "Aktivieren"}>
+            <IconButton
+              size="small"
+              onClick={() => handleToggleActive(params.row.id)}
+              color={params.row.is_active ? "success" : "default"}
+            >
+              {params.row.is_active ? <ToggleOnIcon /> : <ToggleOffIcon />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Bearbeiten">
+            <IconButton size="small" onClick={() => openEditDialog(params.row)}>
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Löschen">
+            <IconButton
+              size="small"
+              onClick={() => handleDeleteSource(params.row.id)}
+              color="error"
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
 
   if (error) {
     return (
@@ -236,175 +320,95 @@ export default function SourcesPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
+    <Box
+      sx={{
+        height: "98vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
       <Box
         sx={{
+          flex: 1,
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
+          flexDirection: "column",
+          minHeight: 0,
+          p: 3,
         }}
       >
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Crawling-Quellen
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Verwalten Sie die Websites und APIs, die nach Fördermitteln
-            durchsucht werden.
-          </Typography>
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 3,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Crawling-Quellen
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Verwalten Sie die Websites und APIs, die nach Fördermitteln
+              durchsucht werden.
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <IconButton
+              onClick={refetch}
+              disabled={loading}
+              title="Aktualisieren"
+            >
+              <RefreshIcon />
+            </IconButton>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openCreateDialog}
+            >
+              Neue Quelle
+            </Button>
+          </Box>
         </Box>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <IconButton
-            onClick={refetch}
-            disabled={loading}
-            title="Aktualisieren"
-          >
-            <RefreshIcon />
-          </IconButton>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openCreateDialog}
-          >
-            Neue Quelle
-          </Button>
+
+        {/* Stats */}
+        <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+          <Chip label={`${sources.length} Quellen gesamt`} variant="outlined" />
+          <Chip
+            label={`${sources.filter((s) => s.is_active).length} aktiv`}
+            color="success"
+            variant="outlined"
+          />
+          <Chip
+            label={`${sources.filter((s) => !s.is_active).length} inaktiv`}
+            color="error"
+            variant="outlined"
+          />
+        </Box>
+
+        {/* DataGrid */}
+        <Box sx={{ flex: 1, minHeight: 0 }}>
+          <DataGrid
+            rows={sources}
+            columns={columns}
+            loading={loading}
+            pageSizeOptions={[10, 25, 50]}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 25 },
+              },
+            }}
+            disableRowSelectionOnClick
+            sx={{
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+            }}
+          />
         </Box>
       </Box>
-
-      {/* Stats */}
-      <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-        <Chip label={`${sources.length} Quellen gesamt`} variant="outlined" />
-        <Chip
-          label={`${sources.filter((s) => s.is_active).length} aktiv`}
-          color="success"
-          variant="outlined"
-        />
-        <Chip
-          label={`${sources.filter((s) => !s.is_active).length} inaktiv`}
-          color="error"
-          variant="outlined"
-        />
-      </Box>
-
-      {/* Sources Grid */}
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : sources.length === 0 ? (
-        <Card sx={{ p: 4, textAlign: "center" }}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            Noch keine Quellen vorhanden
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Fügen Sie Ihre erste Crawling-Quelle hinzu, um mit der Datensammlung
-            zu beginnen.
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openCreateDialog}
-          >
-            Erste Quelle hinzufügen
-          </Button>
-        </Card>
-      ) : (
-        <Grid container spacing={2}>
-          {sources.map((source) => (
-            <Grid item xs={12} md={6} lg={4} key={source.id}>
-              <Card
-                sx={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <CardContent sx={{ flex: 1 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      mb: 1,
-                    }}
-                  >
-                    <Typography variant="h6" component="h3" noWrap>
-                      {source.name}
-                    </Typography>
-                    <Chip
-                      label={source.is_active ? "Aktiv" : "Inaktiv"}
-                      size="small"
-                      color={source.is_active ? "success" : "error"}
-                      variant="outlined"
-                      onClick={() => toggleActive(source.id)}
-                      sx={{ cursor: "pointer" }}
-                    />
-                  </Box>
-
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    {source.url}
-                  </Typography>
-
-                  {source.description && (
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      {source.description}
-                    </Typography>
-                  )}
-
-                  <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-                    {source.source_type && (
-                      <Chip
-                        label={source.source_type}
-                        size="small"
-                        variant="outlined"
-                      />
-                    )}
-                  </Box>
-                </CardContent>
-
-                <CardActions>
-                  <IconButton
-                    size="small"
-                    onClick={() => openEditDialog(source)}
-                    title="Bearbeiten"
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDeleteSource(source.id)}
-                    title="Löschen"
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
-
-      {/* Floating Action Button for mobile */}
-      <Fab
-        color="primary"
-        aria-label="add"
-        onClick={openCreateDialog}
-        sx={{
-          position: "fixed",
-          bottom: 16,
-          right: 16,
-          display: { xs: "flex", sm: "none" }, // Only show on mobile
-        }}
-      >
-        <AddIcon />
-      </Fab>
 
       {/* Create/Edit Dialog */}
       <SourceDialog
