@@ -4,142 +4,21 @@ import {
   Button,
   IconButton,
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  CircularProgress,
-  Tooltip,
   Switch,
   Chip,
 } from "@mui/material";
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import {
   Add as AddIcon,
-  Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
 } from "@mui/icons-material";
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import {
   useSources,
   type Source,
   type SourceInsert,
 } from "../hooks/useSources";
-
-interface SourceDialogProps {
-  open: boolean;
-  source?: Source | null;
-  onClose: () => void;
-  onSave: (data: SourceInsert) => Promise<void>;
-}
-
-function SourceDialog({ open, source, onClose, onSave }: SourceDialogProps) {
-  const [formData, setFormData] = useState<SourceInsert>({
-    name: source?.name || "",
-    url: source?.url || "",
-    description: source?.description || "",
-    source_type: "website", // Fixed default value
-    is_active: source?.is_active ?? true,
-  });
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const handleChange =
-    (field: keyof SourceInsert) =>
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value =
-        event.target.type === "checkbox"
-          ? event.target.checked
-          : event.target.value;
-      setFormData((prev) => ({ ...prev, [field]: value }));
-      if (formError) setFormError(null);
-    };
-
-  const handleSave = async () => {
-    // Basic validation
-    if (!formData.name?.trim()) {
-      setFormError("Name ist erforderlich");
-      return;
-    }
-    if (!formData.url?.trim()) {
-      setFormError("URL ist erforderlich");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      await onSave(formData);
-      onClose();
-      // Reset form
-      setFormData({
-        name: "",
-        url: "",
-        description: "",
-        source_type: "website",
-        is_active: true,
-      });
-    } catch (err) {
-      setFormError("Fehler beim Speichern");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {source ? "Quelle bearbeiten" : "Neue Quelle hinzufügen"}
-      </DialogTitle>
-      <DialogContent>
-        {formError && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {formError}
-          </Alert>
-        )}
-
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-          <TextField
-            label="Name"
-            value={formData.name}
-            onChange={handleChange("name")}
-            required
-            disabled={saving}
-            placeholder="z.B. Förderdatenbank des Bundes"
-          />
-
-          <TextField
-            label="URL"
-            value={formData.url}
-            onChange={handleChange("url")}
-            required
-            disabled={saving}
-            placeholder="https://example.com"
-          />
-
-          <TextField
-            label="Beschreibung"
-            value={formData.description || ""}
-            onChange={handleChange("description")}
-            multiline
-            rows={3}
-            disabled={saving}
-            placeholder="Kurze Beschreibung der Quelle..."
-          />
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>
-          Abbrechen
-        </Button>
-        <Button onClick={handleSave} variant="contained" disabled={saving}>
-          {saving ? <CircularProgress size={20} /> : "Speichern"}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
 
 export default function SourcesPage() {
   const {
@@ -152,24 +31,22 @@ export default function SourcesPage() {
     deleteSource,
     toggleActive,
   } = useSources();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSource, setEditingSource] = useState<Source | null>(null);
 
-  const handleCreateSource = useCallback(
-    async (data: SourceInsert) => {
-      await createSource(data);
-    },
-    [createSource]
-  );
+  const handleCreateSource = useCallback(async () => {
+    // Create a new source with default values
+    const newSource: SourceInsert = {
+      name: "Neue Quelle",
+      url: "https://",
+      source_type: "website",
+      is_active: true,
+    };
 
-  const handleEditSource = useCallback(
-    async (data: SourceInsert) => {
-      if (editingSource) {
-        await updateSource(editingSource.id, data);
-      }
-    },
-    [editingSource, updateSource]
-  );
+    try {
+      await createSource(newSource);
+    } catch (err) {
+      console.error("Error creating source:", err);
+    }
+  }, [createSource]);
 
   const handleDeleteSource = useCallback(
     async (id: number) => {
@@ -187,20 +64,37 @@ export default function SourcesPage() {
     [toggleActive]
   );
 
-  const openCreateDialog = () => {
-    setEditingSource(null);
-    setDialogOpen(true);
-  };
+  // Handle cell edit commits
+  const handleProcessRowUpdate = useCallback(
+    async (newRow: Source, oldRow: Source) => {
+      try {
+        // Validate required fields
+        if (!newRow.name?.trim()) {
+          throw new Error("Name ist erforderlich");
+        }
+        if (!newRow.url?.trim()) {
+          throw new Error("URL ist erforderlich");
+        }
 
-  const openEditDialog = (source: Source) => {
-    setEditingSource(source);
-    setDialogOpen(true);
-  };
+        // Update the source
+        await updateSource(newRow.id, {
+          name: newRow.name.trim(),
+          url: newRow.url.trim(),
+        });
 
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setEditingSource(null);
-  };
+        return newRow;
+      } catch (error) {
+        console.error("Error updating source:", error);
+        // Return old row to revert changes on error
+        return oldRow;
+      }
+    },
+    [updateSource]
+  );
+
+  const handleProcessRowUpdateError = useCallback((error: Error) => {
+    console.error("Row update error:", error);
+  }, []);
 
   // Helper function to format relative time
   const formatRelativeTime = (dateString: string | null) => {
@@ -228,33 +122,18 @@ export default function SourcesPage() {
     return date.toLocaleDateString("de-DE");
   };
 
-  // Column definitions for DataGrid
+  // Column definitions for DataGrid with inline editing
   const columns: GridColDef[] = [
     {
       field: "name",
       headerName: "Name",
       flex: 2,
       minWidth: 200,
+      editable: true,
       renderCell: (params) => (
-        <Box>
-          <Typography variant="body2" fontWeight={500}>
-            {params.row.name}
-          </Typography>
-          {params.row.description && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                display: "-webkit-box",
-                WebkitLineClamp: 1,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {params.row.description}
-            </Typography>
-          )}
-        </Box>
+        <Typography variant="body2" fontWeight={500}>
+          {params.row.name}
+        </Typography>
       ),
     },
     {
@@ -262,6 +141,7 @@ export default function SourcesPage() {
       headerName: "URL",
       flex: 2,
       minWidth: 250,
+      editable: true,
       renderCell: (params) => (
         <Typography
           variant="body2"
@@ -339,26 +219,19 @@ export default function SourcesPage() {
     {
       field: "actions",
       headerName: "Aktionen",
-      width: 120,
+      width: 80,
       sortable: false,
       filterable: false,
+      disableColumnMenu: true,
       renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Tooltip title="Bearbeiten">
-            <IconButton size="small" onClick={() => openEditDialog(params.row)}>
-              <EditIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Löschen">
-            <IconButton
-              size="small"
-              onClick={() => handleDeleteSource(params.row.id)}
-              color="error"
-            >
-              <DeleteIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        <IconButton
+          size="small"
+          onClick={() => handleDeleteSource(params.row.id)}
+          color="error"
+          title="Löschen"
+        >
+          <DeleteIcon />
+        </IconButton>
       ),
     },
   ];
@@ -412,8 +285,8 @@ export default function SourcesPage() {
               Crawling-Quellen
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Verwalten Sie die Websites und APIs, die nach Fördermitteln
-              durchsucht werden.
+              Doppelklicken Sie auf Name oder URL zum Bearbeiten. Neue Quellen
+              werden automatisch erstellt.
             </Typography>
           </Box>
           <Box sx={{ display: "flex", gap: 1 }}>
@@ -427,7 +300,7 @@ export default function SourcesPage() {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={openCreateDialog}
+              onClick={handleCreateSource}
             >
               Neue Quelle
             </Button>
@@ -456,7 +329,7 @@ export default function SourcesPage() {
           />
         </Box>
 
-        {/* DataGrid */}
+        {/* DataGrid with inline editing */}
         <Box sx={{ flex: 1, minHeight: 0 }}>
           <DataGrid
             rows={sources}
@@ -468,9 +341,11 @@ export default function SourcesPage() {
                 paginationModel: { pageSize: 25 },
               },
               sorting: {
-                sortModel: [{ field: "last_crawled_at", sort: "desc" }], // Sort by last crawled by default
+                sortModel: [{ field: "last_crawled_at", sort: "desc" }],
               },
             }}
+            processRowUpdate={handleProcessRowUpdate}
+            onProcessRowUpdateError={handleProcessRowUpdateError}
             disableRowSelectionOnClick
             getRowHeight={() => "auto"}
             sx={{
@@ -504,18 +379,30 @@ export default function SourcesPage() {
                 lineHeight: "1.2",
                 width: "100%",
               },
+              // Inline editing styles
+              "& .MuiDataGrid-cell--editable": {
+                cursor: "pointer",
+                "&:hover": {
+                  backgroundColor: "action.hover",
+                },
+              },
+              "& .MuiDataGrid-cell--editing": {
+                backgroundColor: "primary.light",
+                color: "primary.contrastText",
+              },
             }}
           />
         </Box>
-      </Box>
 
-      {/* Create/Edit Dialog */}
-      <SourceDialog
-        open={dialogOpen}
-        source={editingSource}
-        onClose={closeDialog}
-        onSave={editingSource ? handleEditSource : handleCreateSource}
-      />
+        {/* Help Text */}
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="caption" color="text.secondary">
+            💡 Tipp: Doppelklicken Sie auf eine Zelle in der Name- oder
+            URL-Spalte, um sie direkt zu bearbeiten. Drücken Sie Enter zum
+            Speichern oder Escape zum Abbrechen.
+          </Typography>
+        </Box>
+      </Box>
     </Box>
   );
 }
