@@ -256,7 +256,7 @@ export default function SourcesPage() {
   return (
     <Box
       sx={{
-        height: "98vh",
+        height: "90vh",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -391,15 +391,6 @@ export default function SourcesPage() {
               },
             }}
           />
-        </Box>
-
-        {/* Help Text */}
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" color="text.secondary">
-            💡 Tipp: Doppelklicken Sie auf eine Zelle in der Name- oder
-            URL-Spalte, um sie direkt zu bearbeiten. Drücken Sie Enter zum
-            Speichern oder Escape zum Abbrechen.
-          </Typography>
         </Box>
       </Box>
     </Box>
