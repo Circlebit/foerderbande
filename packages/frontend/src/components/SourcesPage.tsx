@@ -2,7 +2,6 @@ import {
   Box,
   Typography,
   Button,
-  Chip,
   IconButton,
   Alert,
   Dialog,
@@ -10,10 +9,10 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControlLabel,
-  Switch,
   CircularProgress,
   Tooltip,
+  Switch,
+  Chip,
 } from "@mui/material";
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import {
@@ -21,8 +20,6 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
-  ToggleOn as ToggleOnIcon,
-  ToggleOff as ToggleOffIcon,
 } from "@mui/icons-material";
 import { useState, useCallback } from "react";
 import {
@@ -43,7 +40,7 @@ function SourceDialog({ open, source, onClose, onSave }: SourceDialogProps) {
     name: source?.name || "",
     url: source?.url || "",
     description: source?.description || "",
-    source_type: source?.source_type || "website",
+    source_type: "website", // Fixed default value
     is_active: source?.is_active ?? true,
   });
   const [saving, setSaving] = useState(false);
@@ -130,25 +127,6 @@ function SourceDialog({ open, source, onClose, onSave }: SourceDialogProps) {
             disabled={saving}
             placeholder="Kurze Beschreibung der Quelle..."
           />
-
-          <TextField
-            label="Typ"
-            value={formData.source_type}
-            onChange={handleChange("source_type")}
-            disabled={saving}
-            placeholder="website, rss, api, etc."
-          />
-
-          <FormControlLabel
-            control={
-              <Switch
-                checked={formData.is_active || false}
-                onChange={handleChange("is_active")}
-                disabled={saving}
-              />
-            }
-            label="Aktiv (Crawling aktiviert)"
-          />
         </Box>
       </DialogContent>
       <DialogActions>
@@ -176,16 +154,6 @@ export default function SourcesPage() {
   } = useSources();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
-
-  // Debug log
-  console.log(
-    "SourcesPage: sources =",
-    sources,
-    "loading =",
-    loading,
-    "error =",
-    error
-  );
 
   const handleCreateSource = useCallback(
     async (data: SourceInsert) => {
@@ -234,55 +202,148 @@ export default function SourcesPage() {
     setEditingSource(null);
   };
 
-  // Column definitions for DataGrid - simplified for debugging
+  // Helper function to format relative time
+  const formatRelativeTime = (dateString: string | null) => {
+    if (!dateString) return "Nie";
+
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (diffMinutes < 1) return "Gerade eben";
+    if (diffMinutes < 60) return `vor ${diffMinutes} Min`;
+    if (diffHours < 24) return `vor ${diffHours} Std`;
+    if (diffDays < 7) return `vor ${diffDays} Tag${diffDays === 1 ? "" : "en"}`;
+    if (diffDays < 30)
+      return `vor ${Math.floor(diffDays / 7)} Woche${
+        Math.floor(diffDays / 7) === 1 ? "" : "n"
+      }`;
+    if (diffDays < 365)
+      return `vor ${Math.floor(diffDays / 30)} Monat${
+        Math.floor(diffDays / 30) === 1 ? "" : "en"
+      }`;
+    return date.toLocaleDateString("de-DE");
+  };
+
+  // Column definitions for DataGrid
   const columns: GridColDef[] = [
     {
       field: "name",
       headerName: "Name",
       flex: 2,
       minWidth: 200,
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="body2" fontWeight={500}>
+            {params.row.name}
+          </Typography>
+          {params.row.description && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: "-webkit-box",
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {params.row.description}
+            </Typography>
+          )}
+        </Box>
+      ),
     },
     {
       field: "url",
       headerName: "URL",
       flex: 2,
       minWidth: 250,
+      renderCell: (params) => (
+        <Typography
+          variant="body2"
+          sx={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {params.row.url}
+        </Typography>
+      ),
     },
-    // {
-    //   field: "source_type",
-    //   headerName: "Typ",
-    //   width: 120,
-    // },
     {
       field: "is_active",
-      headerName: "Status",
-      width: 100,
+      headerName: "Aktiv",
+      width: 80,
       renderCell: (params) => (
-        <Chip
-          label={params.row.is_active ? "Aktiv" : "Inaktiv"}
-          color={params.row.is_active ? "success" : "error"}
+        <Switch
+          checked={params.row.is_active}
+          onChange={() => handleToggleActive(params.row.id)}
           size="small"
-          variant="outlined"
+          color="success"
         />
       ),
     },
     {
+      field: "last_crawled_at",
+      headerName: "Letzte Suche",
+      width: 130,
+      renderCell: (params) => {
+        const lastCrawled = params.row.last_crawled_at;
+        const relativeTime = formatRelativeTime(lastCrawled);
+        const isOverdue =
+          lastCrawled &&
+          new Date().getTime() - new Date(lastCrawled).getTime() >
+            7 * 24 * 60 * 60 * 1000; // 7 days
+
+        return (
+          <Box>
+            <Typography
+              variant="body2"
+              color={
+                !lastCrawled
+                  ? "text.secondary"
+                  : isOverdue
+                  ? "warning.main"
+                  : "text.primary"
+              }
+            >
+              {relativeTime}
+            </Typography>
+            {lastCrawled && (
+              <Typography variant="caption" color="text.secondary">
+                {new Date(lastCrawled).toLocaleDateString("de-DE")}
+              </Typography>
+            )}
+          </Box>
+        );
+      },
+    },
+    {
+      field: "created_at",
+      headerName: "Erstellt",
+      width: 120,
+      renderCell: (params) =>
+        params.row.created_at ? (
+          <Typography variant="body2">
+            {new Date(params.row.created_at).toLocaleDateString("de-DE")}
+          </Typography>
+        ) : (
+          "-"
+        ),
+    },
+    {
       field: "actions",
       headerName: "Aktionen",
-      width: 200,
+      width: 120,
       sortable: false,
       filterable: false,
       renderCell: (params) => (
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Tooltip title={params.row.is_active ? "Deaktivieren" : "Aktivieren"}>
-            <IconButton
-              size="small"
-              onClick={() => handleToggleActive(params.row.id)}
-              color={params.row.is_active ? "success" : "default"}
-            >
-              {params.row.is_active ? <ToggleOnIcon /> : <ToggleOffIcon />}
-            </IconButton>
-          </Tooltip>
           <Tooltip title="Bearbeiten">
             <IconButton size="small" onClick={() => openEditDialog(params.row)}>
               <EditIcon />
@@ -386,6 +447,13 @@ export default function SourcesPage() {
             color="error"
             variant="outlined"
           />
+          <Chip
+            label={`${
+              sources.filter((s) => !s.last_crawled_at).length
+            } noch nie durchsucht`}
+            color="warning"
+            variant="outlined"
+          />
         </Box>
 
         {/* DataGrid */}
@@ -399,12 +467,43 @@ export default function SourcesPage() {
               pagination: {
                 paginationModel: { pageSize: 25 },
               },
+              sorting: {
+                sortModel: [{ field: "last_crawled_at", sort: "desc" }], // Sort by last crawled by default
+              },
             }}
             disableRowSelectionOnClick
+            getRowHeight={() => "auto"}
             sx={{
               border: 1,
               borderColor: "divider",
               borderRadius: 1,
+              "& .MuiDataGrid-cell": {
+                display: "flex",
+                alignItems: "flex-start",
+                lineHeight: "unset !important",
+                maxHeight: "none !important",
+                whiteSpace: "normal",
+                paddingTop: "12px",
+                paddingBottom: "12px",
+              },
+              "& .MuiDataGrid-cell:focus": {
+                outline: "none",
+              },
+              "& .MuiDataGrid-row": {
+                minHeight: "60px !important",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "action.hover",
+              },
+              "& .MuiDataGrid-renderingZone": {
+                maxHeight: "none !important",
+              },
+              "& .MuiDataGrid-cell .MuiDataGrid-cellContent": {
+                maxHeight: "none",
+                whiteSpace: "normal",
+                lineHeight: "1.2",
+                width: "100%",
+              },
             }}
           />
         </Box>

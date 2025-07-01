@@ -71,6 +71,7 @@ export type Database = {
           description: string | null
           id: number
           is_active: boolean | null
+          last_crawled_at: string | null
           name: string
           source_type: string | null
           updated_at: string | null
@@ -82,6 +83,7 @@ export type Database = {
           description?: string | null
           id?: number
           is_active?: boolean | null
+          last_crawled_at?: string | null
           name: string
           source_type?: string | null
           updated_at?: string | null
@@ -93,6 +95,7 @@ export type Database = {
           description?: string | null
           id?: number
           is_active?: boolean | null
+          last_crawled_at?: string | null
           name?: string
           source_type?: string | null
           updated_at?: string | null
@@ -140,7 +143,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_source_last_crawled: {
+        Args: { source_id: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
