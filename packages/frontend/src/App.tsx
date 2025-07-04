@@ -1,51 +1,45 @@
-import { Box, AppBar, Toolbar, Typography, IconButton } from "@mui/material";
-import { LogoutOutlined } from "@mui/icons-material";
+import { Box } from "@mui/material";
 import FundingCallsGrid from "./components/FundingCallsGrid";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { useAuth } from "./hooks/useAuth";
+import Navbar from "./components/Navbar";
+import SettingsPage from "./components/SettingsPage";
+import SourcesPage from "./components/SourcesPage";
+import { useNavigation } from "./hooks/useNavigation";
 
 function App() {
-  const { user, signOut } = useAuth();
+  const { currentPage } = useNavigation();
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error("Sign out error:", error);
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case "funding-calls":
+        return <FundingCallsGrid />;
+      case "sources":
+        return <SourcesPage />;
+      case "settings":
+        return <SettingsPage />;
+      default:
+        return <FundingCallsGrid />;
     }
   };
 
   return (
     <ProtectedRoute>
       <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-        {/* Header with user info and logout */}
-        <AppBar position="static" elevation={1}>
-          <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              fomo - Funding Opportunity Monitor
-            </Typography>
-
-            {user && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ mr: 1 }}>
-                  {user.email}
-                </Typography>
-                <IconButton
-                  color="inherit"
-                  onClick={handleSignOut}
-                  title="Abmelden"
-                  size="small"
-                >
-                  <LogoutOutlined />
-                </IconButton>
-              </Box>
-            )}
-          </Toolbar>
-        </AppBar>
+        {/* Navigation Bar */}
+        <Navbar />
 
         {/* Main content area */}
-        <Box sx={{ flex: 1, overflow: "hidden" }}>
-          <FundingCallsGrid />
+        <Box
+          sx={{
+            flex: 1,
+            overflow: "hidden",
+            // Different overflow behavior for different pages
+            ...((currentPage === "settings" || currentPage === "sources") && {
+              overflow: "auto", // Settings and Sources pages need scrolling
+            }),
+          }}
+        >
+          {renderCurrentPage()}
         </Box>
       </Box>
     </ProtectedRoute>
